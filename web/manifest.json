@@ -1,12 +1,12 @@
 {
-    "name": "checkmate_by_caris",
-    "short_name": "checkmate_by_caris",
+    "name": "Checkmate by Caris",
+    "short_name": "Checkmate",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "description": "Checkmate by Caris is a governed Flutter chess board with unlockable 2.5D sets.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

@@ -1,0 +1,86 @@
+name: GitHub Delivery
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: github-delivery-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Build and publish web
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.6
+          channel: stable
+          cache: true
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Run analyzer
+        run: flutter analyze
+
+      - name: Build web
+        shell: bash
+        run: |
+          BASE_HREF="/${GITHUB_REPOSITORY#*/}/"
+          flutter build web --release --base-href "$BASE_HREF"
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: build/web
+          force_orphan: true
+
+      - name: Upload web build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkmate-web-build
+          path: build/web
+
+  windows:
+    name: Build Windows release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.6
+          channel: stable
+          cache: true
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Upload Windows build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkmate-windows-release
+          path: build/windows/x64/runner/Release
