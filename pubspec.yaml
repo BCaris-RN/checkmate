@@ -1,5 +1,5 @@
 name: checkmate_by_caris
-description: "Governed Flutter chess board for local and LAN play."
+description: "Governed Flutter chess board with unlockable 2.5D sets for local and LAN play."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:checkmate_by_caris/features/match/chess_set_themes.dart';
 import 'package:checkmate_by_caris/features/match/match_controller.dart';
 import 'package:checkmate_by_caris/features/match/match_models.dart';
 import 'package:checkmate_by_caris/features/match/match_storage.dart';
@@ -176,5 +177,72 @@ void main() {
     expect(controller.session.activeColor, ChessColor.black);
     expect(controller.turnSummary, 'Black to move');
     expect(storage.saveCount, 1);
+  });
+
+  test('career progress unlocks and persists themed chess sets', () async {
+    final storage = FakeMatchStorage();
+    final transport = FakeMatchTransport(
+      launchResult: HostLaunchResult(
+        uri: Uri.parse('http://192.168.1.10:5050'),
+        port: 5050,
+        lanAddress: '192.168.1.10',
+      ),
+    );
+    final controller = MatchController(
+      storage: storage,
+      transport: transport,
+    );
+
+    await controller.startLocalMatch();
+
+    final opening = <ChessMove>[
+      ChessMove(
+        from: const ChessSquare(file: 4, row: 6),
+        to: const ChessSquare(file: 4, row: 4),
+      ),
+      ChessMove(
+        from: const ChessSquare(file: 4, row: 1),
+        to: const ChessSquare(file: 4, row: 3),
+      ),
+      ChessMove(
+        from: const ChessSquare(file: 6, row: 7),
+        to: const ChessSquare(file: 5, row: 5),
+      ),
+      ChessMove(
+        from: const ChessSquare(file: 1, row: 0),
+        to: const ChessSquare(file: 2, row: 2),
+      ),
+      ChessMove(
+        from: const ChessSquare(file: 5, row: 7),
+        to: const ChessSquare(file: 2, row: 4),
+      ),
+      ChessMove(
+        from: const ChessSquare(file: 6, row: 0),
+        to: const ChessSquare(file: 5, row: 2),
+      ),
+      ChessMove(
+        from: const ChessSquare(file: 3, row: 6),
+        to: const ChessSquare(file: 3, row: 5),
+      ),
+      ChessMove(
+        from: const ChessSquare(file: 3, row: 1),
+        to: const ChessSquare(file: 3, row: 2),
+      ),
+    ];
+
+    for (final move in opening) {
+      await controller.playMove(move);
+    }
+
+    expect(controller.playerLevel, 2);
+    expect(controller.isThemeUnlocked(ChessSetCatalog.crystal), isTrue);
+    expect(controller.isThemeUnlocked(ChessSetCatalog.gold), isFalse);
+
+    await controller.selectTheme(ChessSetCatalog.crystal.id);
+
+    expect(controller.activeTheme.id, ChessSetCatalog.crystal.id);
+    expect(storage.savedState?.careerXp, controller.careerXp);
+    expect(storage.savedState?.selectedThemeId, ChessSetCatalog.crystal.id);
+    expect(controller.levelSummary, 'Level 2 - 0/8 XP');
   });
 }

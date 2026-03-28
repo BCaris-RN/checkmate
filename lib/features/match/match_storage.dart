@@ -12,6 +12,8 @@ class MatchPersistedState {
     required this.hostPort,
     required this.joinAddress,
     required this.joinPort,
+    required this.careerXp,
+    required this.selectedThemeId,
   });
 
   final MatchSession session;
@@ -20,6 +22,8 @@ class MatchPersistedState {
   final int? hostPort;
   final String? joinAddress;
   final int? joinPort;
+  final int careerXp;
+  final String selectedThemeId;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -29,6 +33,8 @@ class MatchPersistedState {
       'hostPort': hostPort,
       'joinAddress': joinAddress,
       'joinPort': joinPort,
+      'careerXp': careerXp,
+      'selectedThemeId': selectedThemeId,
     };
   }
 
@@ -45,6 +51,9 @@ class MatchPersistedState {
       hostPort: (json['hostPort'] as num?)?.toInt(),
       joinAddress: json['joinAddress'] as String?,
       joinPort: (json['joinPort'] as num?)?.toInt(),
+      careerXp: (json['careerXp'] as num?)?.toInt() ?? 0,
+      selectedThemeId:
+          (json['selectedThemeId'] as String?) ?? 'chrome',
     );
   }
 }

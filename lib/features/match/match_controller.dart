@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'chess_set_themes.dart';
 import 'match_models.dart';
 import 'match_storage.dart';
 import 'match_transport.dart';
@@ -18,6 +19,8 @@ class MatchController extends ChangeNotifier {
 
   MatchSession _session = MatchSession.initial();
   MatchRole _role = MatchRole.local;
+  int _careerXp = 0;
+  String _selectedThemeId = ChessSetCatalog.chrome.id;
   String? _hostAddress;
   int? _hostPort;
   Uri? _hostUri;
@@ -44,6 +47,34 @@ class MatchController extends ChangeNotifier {
   bool get isHosted => _role == MatchRole.host && _hostUri != null;
   bool get isJoined => _role == MatchRole.guest && _joinUri != null;
   bool get isLocal => _role == MatchRole.local;
+  int get careerXp => _careerXp;
+  static const int _xpPerLevel = 8;
+
+  int get playerLevel => 1 + (_careerXp ~/ _xpPerLevel);
+
+  int get xpIntoLevel => _careerXp % _xpPerLevel;
+
+  int get xpToNextLevel => _xpPerLevel - xpIntoLevel;
+
+  List<ChessSetTheme> get availableThemes => ChessSetCatalog.all;
+
+  List<ChessSetTheme> get unlockedThemes =>
+      ChessSetCatalog.unlockedForLevel(playerLevel);
+
+  ChessSetTheme get activeTheme => ChessSetCatalog.byId(_selectedThemeId);
+
+  String get levelSummary => 'Level $playerLevel - $xpIntoLevel/$_xpPerLevel XP';
+
+  String get unlockSummary =>
+      '${unlockedThemes.length}/${availableThemes.length} sets unlocked';
+
+  String get nextUnlockSummary {
+    final nextTheme = ChessSetCatalog.nextLockedTheme(playerLevel);
+    if (nextTheme == null) {
+      return 'All sets unlocked.';
+    }
+    return 'Next unlock: ${nextTheme.name} at level ${nextTheme.unlockLevel}.';
+  }
 
   List<ChessSquare> get legalTargets {
     final square = _selectedSquare;
@@ -94,6 +125,10 @@ class MatchController extends ChangeNotifier {
     };
   }
 
+  bool isThemeUnlocked(ChessSetTheme theme) {
+    return playerLevel >= theme.unlockLevel;
+  }
+
   List<String> get historyLines {
     return _session.moves.reversed
         .take(8)
@@ -111,6 +146,12 @@ class MatchController extends ChangeNotifier {
 
     _session = saved.session;
     _role = saved.role;
+    _careerXp = saved.careerXp;
+    _selectedThemeId = ChessSetCatalog.byId(saved.selectedThemeId).id;
+    final selectedTheme = ChessSetCatalog.byId(_selectedThemeId);
+    if (!isThemeUnlocked(selectedTheme)) {
+      _selectedThemeId = ChessSetCatalog.themeForLevel(playerLevel).id;
+    }
     _hostAddress = saved.hostAddress;
     _hostPort = saved.hostPort;
     _joinAddress = saved.joinAddress;
@@ -138,7 +179,7 @@ class MatchController extends ChangeNotifier {
       await _stopNetwork();
       final launch = await _transport.startHost(
         readSession: () async => _session,
-        applyMove: _applyMove,
+        applyMove: (move) => _applyMove(move, awardProgress: false),
         resetMatch: _resetMatch,
       );
 
@@ -256,17 +297,26 @@ class MatchController extends ChangeNotifier {
         );
       }
 
+      final movingPiece = _session.pieceAt(move.from);
+      if (movingPiece == null) {
+        throw MatchRuleError('No piece is on ${move.from.notation}.');
+      }
+
       if (_role == MatchRole.guest && _joinUri != null) {
         final fresh = await _transport.submitMove(_joinUri!, move);
         _session = fresh;
         _notice = fresh.note;
         _selectedSquare = null;
         _pollErrorShown = false;
+        _recordCareerProgress(
+          movingColor: movingPiece.color,
+          resultingSession: fresh,
+        );
         await _persist();
         return;
       }
 
-      await _applyMove(move);
+      await _applyMove(move, awardProgress: true);
     });
   }
 
@@ -290,13 +340,41 @@ class MatchController extends ChangeNotifier {
     return _session;
   }
 
-  Future<MatchSession> _applyMove(ChessMove move) async {
+  Future<MatchSession> _applyMove(
+    ChessMove move, {
+    bool awardProgress = true,
+  }) async {
+    final movingPiece = _session.pieceAt(move.from);
     _session = _session.playMove(move);
     _notice = _session.note;
+    if (awardProgress && movingPiece != null) {
+      _recordCareerProgress(
+        movingColor: movingPiece.color,
+        resultingSession: _session,
+      );
+    }
     _selectedSquare = null;
     await _persist();
     notifyListeners();
     return _session;
+  }
+
+  Future<void> selectTheme(String themeId) async {
+    final theme = ChessSetCatalog.byId(themeId);
+    if (!isThemeUnlocked(theme)) {
+      _notice = 'Reach level ${theme.unlockLevel} to unlock ${theme.name}.';
+      notifyListeners();
+      return;
+    }
+
+    if (_selectedThemeId == theme.id) {
+      return;
+    }
+
+    _selectedThemeId = theme.id;
+    _notice = '${theme.name} selected.';
+    notifyListeners();
+    await _persist();
   }
 
   ChessMove? _findLegalMove(ChessSquare from, ChessSquare to) {
@@ -350,8 +428,43 @@ class MatchController extends ChangeNotifier {
         hostPort: _hostPort,
         joinAddress: _joinAddress,
         joinPort: _joinPort,
+        careerXp: _careerXp,
+        selectedThemeId: _selectedThemeId,
       ),
     );
+  }
+
+  void _recordCareerProgress({
+    required ChessColor movingColor,
+    required MatchSession resultingSession,
+  }) {
+    final previousLevel = playerLevel;
+    var earnedXp = 1;
+
+    if (resultingSession.isComplete) {
+      earnedXp += resultingSession.phase == MatchPhase.draw
+          ? 2
+          : resultingSession.winner == movingColor
+              ? 6
+              : 2;
+    }
+
+    _careerXp += earnedXp;
+
+    final updatedLevel = playerLevel;
+    if (updatedLevel > previousLevel) {
+      final unlockedThemes = ChessSetCatalog.all
+          .where(
+            (theme) =>
+                theme.unlockLevel > previousLevel &&
+                theme.unlockLevel <= updatedLevel,
+          )
+          .map((theme) => theme.name)
+          .toList(growable: false);
+      _notice = unlockedThemes.isEmpty
+          ? 'Level $updatedLevel reached.'
+          : 'Level $updatedLevel unlocked ${unlockedThemes.join(', ')}.';
+    }
   }
 
   Future<void> _stopNetwork() async {
