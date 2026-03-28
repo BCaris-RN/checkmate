@@ -24,7 +24,8 @@ class MatchController extends ChangeNotifier {
   String? _joinAddress;
   int? _joinPort;
   Uri? _joinUri;
-  String? _notice = 'Start a local match, host this device, or join a host.';
+  ChessSquare? _selectedSquare;
+  String? _notice = 'White moves first. Tap a piece, then a highlighted square.';
   String? _lastError;
   bool _busy = false;
   bool _pollErrorShown = false;
@@ -36,6 +37,7 @@ class MatchController extends ChangeNotifier {
   int? get hostPort => _hostPort;
   String? get joinAddress => _joinAddress;
   int? get joinPort => _joinPort;
+  ChessSquare? get selectedSquare => _selectedSquare;
   String? get notice => _notice;
   String? get lastError => _lastError;
   bool get busy => _busy;
@@ -43,25 +45,36 @@ class MatchController extends ChangeNotifier {
   bool get isJoined => _role == MatchRole.guest && _joinUri != null;
   bool get isLocal => _role == MatchRole.local;
 
+  List<ChessSquare> get legalTargets {
+    final square = _selectedSquare;
+    if (square == null) {
+      return const <ChessSquare>[];
+    }
+    return _session
+        .legalMovesFrom(square)
+        .map((move) => move.to)
+        .toList(growable: false);
+  }
+
   String get connectionSummary {
     return switch (_role) {
-      MatchRole.local => 'Local hot-seat on this device',
+      MatchRole.local => 'Local chess on this device',
       MatchRole.host => _hostUri == null
           ? 'Host setup ready'
           : _hostAddress == null
-              ? 'Hosting on port ${_hostPort ?? _hostUri!.port}'
-              : 'Hosting $_hostAddress:${_hostPort ?? _hostUri!.port}',
+              ? 'Hosting white side on port ${_hostPort ?? _hostUri!.port}'
+              : 'Hosting white side at $_hostAddress:${_hostPort ?? _hostUri!.port}',
       MatchRole.guest => _joinUri == null
           ? 'Join setup ready'
-          : 'Joined ${_joinAddress ?? _joinUri!.host}:${_joinPort ?? _joinUri!.port}',
+          : 'Joined black side at ${_joinAddress ?? _joinUri!.host}:${_joinPort ?? _joinUri!.port}',
     };
   }
 
   String get seatSummary {
     return switch (_role) {
-      MatchRole.local => 'Both seats on one screen',
-      MatchRole.host => 'Blue seat on this device',
-      MatchRole.guest => 'Ink seat on this device',
+      MatchRole.local => 'Both sides on one screen',
+      MatchRole.host => 'White seat on this device',
+      MatchRole.guest => 'Black seat on this device',
     };
   }
 
@@ -71,24 +84,27 @@ class MatchController extends ChangeNotifier {
     if (_session.isComplete) {
       return false;
     }
+
     return switch (_role) {
       MatchRole.local => true,
-      MatchRole.host => _hostUri != null && _session.activePlayer == MatchToken.blue,
-      MatchRole.guest => _joinUri != null && _session.activePlayer == MatchToken.ink,
+      MatchRole.host => _hostUri != null &&
+          _session.activeColor == ChessColor.white,
+      MatchRole.guest => _joinUri != null &&
+          _session.activeColor == ChessColor.black,
     };
   }
 
   List<String> get historyLines {
-    final moves = _session.moves.reversed.take(8);
-    return moves
-        .map((move) => '${move.player.shortLabel}  column ${move.column + 1}')
+    return _session.moves.reversed
+        .take(8)
+        .map((move) => move.summary)
         .toList(growable: false);
   }
 
   Future<void> bootstrap() async {
     final saved = await _storage.load();
     if (saved == null) {
-      _notice = 'Ready for a fresh match.';
+      _notice = 'Ready for a fresh chess board.';
       notifyListeners();
       return;
     }
@@ -101,7 +117,8 @@ class MatchController extends ChangeNotifier {
     _joinPort = saved.joinPort;
     _hostUri = null;
     _joinUri = null;
-    _notice = 'Saved match restored. Start host or join again to resume networking.';
+    _selectedSquare = null;
+    _notice = 'Saved chess position restored. Reconnect host or join to resume LAN play.';
     notifyListeners();
   }
 
@@ -110,7 +127,8 @@ class MatchController extends ChangeNotifier {
       await _stopNetwork();
       _role = MatchRole.local;
       _session = MatchSession.initial();
-      _notice = 'Local hot-seat match started.';
+      _selectedSquare = null;
+      _notice = 'Local chess board reset.';
       await _persist();
     });
   }
@@ -120,7 +138,7 @@ class MatchController extends ChangeNotifier {
       await _stopNetwork();
       final launch = await _transport.startHost(
         readSession: () async => _session,
-        applyMove: _applyColumn,
+        applyMove: _applyMove,
         resetMatch: _resetMatch,
       );
 
@@ -129,6 +147,7 @@ class MatchController extends ChangeNotifier {
       _hostPort = launch.port;
       _hostUri = launch.uri;
       _joinUri = null;
+      _selectedSquare = null;
       _notice = launch.lanAddress == null
           ? 'Host is live on port ${launch.port}, but no LAN address was detected.'
           : 'Share ${launch.lanAddress}:${launch.port} with the other device.';
@@ -159,6 +178,7 @@ class MatchController extends ChangeNotifier {
       _joinPort = port;
       _joinUri = baseUri;
       _hostUri = null;
+      _selectedSquare = null;
       _notice = 'Connected to $cleanedAddress:$port.';
       _pollErrorShown = false;
       _startPolling();
@@ -176,7 +196,8 @@ class MatchController extends ChangeNotifier {
       final fresh = await _transport.fetchState(uri);
       if (fresh.updatedAt.isAfter(_session.updatedAt)) {
         _session = fresh;
-        _notice = 'Match synchronized from host.';
+        _selectedSquare = null;
+        _notice = 'Chess position synchronized from host.';
         await _persist();
         notifyListeners();
       }
@@ -191,24 +212,61 @@ class MatchController extends ChangeNotifier {
     }
   }
 
-  Future<void> playColumn(int column) async {
+  Future<void> tapSquare(int file, int row) async {
+    if (_busy) {
+      return;
+    }
+
+    final square = ChessSquare(file: file, row: row);
+    final selected = _selectedSquare;
+
+    if (selected != null) {
+      if (selected == square) {
+        _selectedSquare = null;
+        notifyListeners();
+        return;
+      }
+
+      final legalMove = _findLegalMove(selected, square);
+      if (legalMove != null) {
+        await playMove(legalMove);
+        return;
+      }
+    }
+
+    final piece = _session.pieceAt(square);
+    if (piece != null && _canSelectPiece(piece)) {
+      _selectedSquare = square;
+      _notice = _session.note;
+      notifyListeners();
+      return;
+    }
+
+    if (_selectedSquare != null) {
+      _selectedSquare = null;
+      notifyListeners();
+    }
+  }
+
+  Future<void> playMove(ChessMove move) async {
     await _runBusy(() async {
       if (!canLocalMove) {
-        throw const MatchRuleError('Wait for the other seat or start a local match.');
+        throw const MatchRuleError(
+          'Wait for your turn or start a local match.',
+        );
       }
 
       if (_role == MatchRole.guest && _joinUri != null) {
-        final fresh = await _transport.submitMove(_joinUri!, column);
+        final fresh = await _transport.submitMove(_joinUri!, move);
         _session = fresh;
         _notice = fresh.note;
+        _selectedSquare = null;
         _pollErrorShown = false;
         await _persist();
         return;
       }
 
-      _session = _session.playColumn(column);
-      _notice = _session.note;
-      await _persist();
+      await _applyMove(move);
     });
   }
 
@@ -217,6 +275,7 @@ class MatchController extends ChangeNotifier {
       final remote = _role == MatchRole.guest && _joinUri != null;
       _session = remote ? await _transport.reset(_joinUri!) : _session.reset();
       _notice = _session.note;
+      _selectedSquare = null;
       _pollErrorShown = false;
       await _persist();
     });
@@ -225,17 +284,42 @@ class MatchController extends ChangeNotifier {
   Future<MatchSession> _resetMatch() async {
     _session = _session.reset();
     _notice = _session.note;
+    _selectedSquare = null;
     await _persist();
     notifyListeners();
     return _session;
   }
 
-  Future<MatchSession> _applyColumn(int column) async {
-    _session = _session.playColumn(column);
+  Future<MatchSession> _applyMove(ChessMove move) async {
+    _session = _session.playMove(move);
     _notice = _session.note;
+    _selectedSquare = null;
     await _persist();
     notifyListeners();
     return _session;
+  }
+
+  ChessMove? _findLegalMove(ChessSquare from, ChessSquare to) {
+    for (final move in _session.legalMovesFrom(from)) {
+      if (move.to == to) {
+        return move;
+      }
+    }
+    return null;
+  }
+
+  bool _canSelectPiece(ChessPiece piece) {
+    return switch (_role) {
+      MatchRole.local => piece.color == _session.activeColor,
+      MatchRole.host =>
+        _hostUri != null &&
+            piece.color == ChessColor.white &&
+            _session.activeColor == ChessColor.white,
+      MatchRole.guest =>
+        _joinUri != null &&
+            piece.color == ChessColor.black &&
+            _session.activeColor == ChessColor.black,
+    };
   }
 
   Future<void> _runBusy(Future<void> Function() action) async {
@@ -279,6 +363,7 @@ class MatchController extends ChangeNotifier {
     _hostPort = null;
     _joinAddress = null;
     _joinPort = null;
+    _selectedSquare = null;
     await _transport.stop();
   }
 

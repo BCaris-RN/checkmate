@@ -117,7 +117,7 @@ class _TopBar extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.grid1),
         Text(
-          'Cross-device match room for phones and tablets.',
+          'White view: files a-h run left to right and ranks 1-8 run bottom to top.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
       ],
@@ -214,7 +214,6 @@ class _BoardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = controller.session;
-    final boardAspectRatio = MatchSession.columns / MatchSession.rows;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.grid4),
@@ -242,24 +241,46 @@ class _BoardCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      session.statusLabel,
+                      controller.turnSummary,
                       style: Theme.of(context).textTheme.displayMedium,
                     ),
                     const SizedBox(height: AppSpacing.grid1),
                     Text(
-                      'Tap a lane to drop a token. Blue always opens.',
+                      'Standard chess layout. Tap a piece, then tap a highlighted square.',
                       style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.grid1),
+                    Text(
+                      session.note,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: AppSpacing.grid4),
-              _Legend(controller: controller),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    controller.seatSummary,
+                    style: Theme.of(context).textTheme.labelLarge,
+                    textAlign: TextAlign.right,
+                  ),
+                  const SizedBox(height: AppSpacing.grid1),
+                  Text(
+                    controller.connectionSummary,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    textAlign: TextAlign.right,
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.grid4),
           AspectRatio(
-            aspectRatio: boardAspectRatio,
+            aspectRatio: 1,
             child: _BoardGrid(controller: controller),
           ),
           const SizedBox(height: AppSpacing.grid4),
@@ -276,73 +297,12 @@ class _BoardCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.grid4),
               TextButton(
                 onPressed: controller.busy ? null : controller.resetMatch,
-                child: const Text('Reset match'),
+                child: const Text('Reset board'),
               ),
             ],
           ),
         ],
       ),
-    );
-  }
-}
-
-class _Legend extends StatelessWidget {
-  const _Legend({required this.controller});
-
-  final MatchController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        _LegendRow(
-          label: 'Blue',
-          color: MatchToken.blue.color,
-        ),
-        const SizedBox(height: AppSpacing.grid1),
-        _LegendRow(
-          label: 'Ink',
-          color: MatchToken.ink.color,
-        ),
-        const SizedBox(height: AppSpacing.grid2),
-        Text(
-          controller.seatSummary,
-          style: Theme.of(context).textTheme.labelLarge,
-          textAlign: TextAlign.right,
-        ),
-      ],
-    );
-  }
-}
-
-class _LegendRow extends StatelessWidget {
-  const _LegendRow({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.grid2),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: AppColors.textPrimary,
-              ),
-        ),
-      ],
     );
   }
 }
@@ -355,97 +315,325 @@ class _BoardGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = controller.session;
+    final selectedSquare = controller.selectedSquare;
+    final legalTargets = controller.legalTargets.toSet();
+    final lastMove = session.moves.isNotEmpty ? session.moves.last : null;
+    final checkedSquare = session.checkedKingSquare;
 
-    return Material(
-      color: AppColors.textPrimary.withValues(alpha: 0.04),
-      borderRadius: BorderRadius.circular(AppRadii.large - 2),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadii.large - 2),
+        border: Border.all(color: AppColors.textPrimary.withValues(alpha: 0.08)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.surface.withValues(alpha: 0.96),
+            AppColors.textPrimary.withValues(alpha: 0.03),
+          ],
+        ),
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.large - 2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: List.generate(MatchSession.columns, (column) {
-            final canTap = controller.canLocalMove && !session.isComplete;
-            return Expanded(
-              child: InkWell(
-                onTap: canTap ? () => controller.playColumn(column) : null,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      right: BorderSide(
-                        color: AppColors.surface.withValues(alpha: 0.55),
-                        width: column == MatchSession.columns - 1 ? 0 : 1,
+        child: Column(
+          children: [
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    child: Column(
+                      children: List.generate(
+                        MatchSession.rows,
+                        (index) => Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              '${MatchSession.rows - index}',
+                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    color: AppColors.textMuted,
+                                  ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: List.generate(MatchSession.rows, (row) {
-                      final token = session.board[row][column];
-                      final isTop = row == 0;
-                      return Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: AppColors.surface.withValues(alpha: 0.55),
-                                width: isTop ? 0 : 1,
+                  const SizedBox(width: AppSpacing.grid2),
+                  Expanded(
+                    child: Column(
+                      children: List.generate(MatchSession.rows, (row) {
+                        return Expanded(
+                          child: Row(
+                            children: List.generate(MatchSession.columns, (file) {
+                              final square = ChessSquare(file: file, row: row);
+                              final piece = session.board[row][file];
+                              final isLightSquare = (file + row) % 2 == 0;
+                              final isSelected = selectedSquare == square;
+                              final isTarget = legalTargets.contains(square);
+                              final isLastMove = lastMove != null &&
+                                  (lastMove.from == square || lastMove.to == square);
+                              final isChecked = checkedSquare == square;
+                              final canTap =
+                                  controller.canLocalMove && !session.isComplete;
+
+                              return Expanded(
+                                child: _BoardSquare(
+                                  square: square,
+                                  piece: piece,
+                                  isLightSquare: isLightSquare,
+                                  isSelected: isSelected,
+                                  isTarget: isTarget,
+                                  isLastMove: isLastMove,
+                                  isChecked: isChecked,
+                                  canTap: canTap,
+                                  onTap: canTap
+                                      ? () {
+                                          controller.tapSquare(file, row);
+                                        }
+                                      : null,
+                                ),
+                              );
+                            }),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.grid2),
+            SizedBox(
+              height: 24,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 32),
+                child: Row(
+                  children: List.generate(
+                    MatchSession.columns,
+                    (file) => Expanded(
+                      child: Center(
+                        child: Text(
+                          String.fromCharCode(97 + file),
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                color: AppColors.textMuted,
                               ),
-                            ),
-                          ),
-                          child: Center(
-                            child: _TokenCell(token: token),
-                          ),
                         ),
-                      );
-                    }),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            );
-          }),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _TokenCell extends StatelessWidget {
-  const _TokenCell({required this.token});
+class _BoardSquare extends StatelessWidget {
+  const _BoardSquare({
+    required this.square,
+    required this.piece,
+    required this.isLightSquare,
+    required this.isSelected,
+    required this.isTarget,
+    required this.isLastMove,
+    required this.isChecked,
+    required this.canTap,
+    required this.onTap,
+  });
 
-  final MatchToken? token;
+  final ChessSquare square;
+  final ChessPiece? piece;
+  final bool isLightSquare;
+  final bool isSelected;
+  final bool isTarget;
+  final bool isLastMove;
+  final bool isChecked;
+  final bool canTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      duration: const Duration(milliseconds: 160),
-      scale: token == null ? 0.88 : 1.0,
-      curve: Curves.easeOutBack,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: token == null
-              ? AppColors.surface.withValues(alpha: 0.12)
-              : token!.color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: token == null
-                ? AppColors.textMuted.withValues(alpha: 0.22)
-                : AppColors.surface.withValues(alpha: 0.42),
-            width: 2,
+    final squareColor = isLightSquare
+        ? AppColors.surface.withValues(alpha: 0.95)
+        : AppColors.textPrimary.withValues(alpha: 0.08);
+    final borderColor = isChecked
+        ? AppColors.accent.withValues(alpha: 0.88)
+        : isSelected
+            ? AppColors.accent.withValues(alpha: 0.64)
+            : AppColors.textPrimary.withValues(alpha: 0.04);
+
+    return Semantics(
+      button: canTap,
+      label: piece == null
+          ? square.notation
+          : '${piece!.label} on ${square.notation}',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                squareColor,
+                squareColor.withValues(alpha: isLightSquare ? 0.72 : 0.88),
+              ],
+            ),
+            border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
           ),
-          boxShadow: token == null
-              ? []
-              : [
-                  BoxShadow(
-                    color: token!.color.withValues(alpha: 0.30),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (isLastMove)
+                Container(
+                  color: AppColors.accent.withValues(alpha: 0.06),
+                ),
+              if (isTarget)
+                Center(
+                  child: piece == null
+                      ? Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.65),
+                            shape: BoxShape.circle,
+                          ),
+                        )
+                      : Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.accent.withValues(alpha: 0.55),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                ),
+              if (piece != null)
+                Center(
+                  child: _PieceBadge(
+                    piece: piece!,
+                    selected: isSelected,
                   ),
-                ],
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _PieceBadge extends StatelessWidget {
+  const _PieceBadge({
+    required this.piece,
+    required this.selected,
+  });
+
+  final ChessPiece piece;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = constraints.biggest.shortestSide * 0.72;
+        final isWhite = piece.color == ChessColor.white;
+        final glyphColor = isWhite ? AppColors.textPrimary : AppColors.surface;
+        final glowColor = isWhite
+            ? AppColors.textPrimary.withValues(alpha: 0.18)
+            : AppColors.textPrimary.withValues(alpha: 0.36);
+
+        return AnimatedScale(
+          duration: const Duration(milliseconds: 140),
+          scale: selected ? 1.06 : 1.0,
+          curve: Curves.easeOutBack,
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isWhite
+                    ? [
+                        AppColors.surface,
+                        AppColors.surface.withValues(alpha: 0.82),
+                        AppColors.textPrimary.withValues(alpha: 0.06),
+                      ]
+                    : [
+                        AppColors.textPrimary.withValues(alpha: 0.96),
+                        AppColors.textPrimary.withValues(alpha: 0.78),
+                        AppColors.textPrimary.withValues(alpha: 0.58),
+                      ],
+              ),
+              border: Border.all(
+                color: isWhite
+                    ? AppColors.textPrimary.withValues(alpha: 0.10)
+                    : AppColors.surface.withValues(alpha: 0.14),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: glowColor,
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned(
+                  top: size * 0.08,
+                  child: Container(
+                    width: size * 0.36,
+                    height: size * 0.14,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      color: isWhite
+                          ? AppColors.surface.withValues(alpha: 0.44)
+                          : AppColors.surface.withValues(alpha: 0.10),
+                    ),
+                  ),
+                ),
+                Text(
+                  piece.symbol,
+                  style: TextStyle(
+                    fontSize: size * 0.48,
+                    height: 1,
+                    color: glyphColor,
+                    fontWeight: FontWeight.w700,
+                    fontFamilyFallback: const <String>[
+                      'Segoe UI Symbol',
+                      'Noto Sans Symbols 2',
+                      'Apple Symbols',
+                    ],
+                    shadows: [
+                      Shadow(
+                        color: isWhite
+                            ? AppColors.textPrimary.withValues(alpha: 0.10)
+                            : AppColors.textPrimary.withValues(alpha: 0.45),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -475,30 +663,30 @@ class _ControlColumn extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Match controls',
+            'Game controls',
             style: Theme.of(context).textTheme.displayMedium,
           ),
           const SizedBox(height: AppSpacing.grid1),
           Text(
-            'Local play works immediately. Device-to-device play needs one host and one joiner on the same Wi-Fi.',
+            'Local chess works immediately. Hosting makes this device white; joining makes it black.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.grid4),
           _ActionButtonRow(
-            title: 'New local match',
+            title: 'New local game',
             description: 'Reset the board and play on one screen.',
             onPressed: controller.busy ? null : controller.startLocalMatch,
           ),
           const SizedBox(height: AppSpacing.grid2),
           _ActionButtonRow(
             title: 'Host this device',
-            description: 'Starts the local server and shares this board.',
+            description: 'Starts the local server as the white side.',
             onPressed: controller.busy ? null : controller.hostMatch,
           ),
           const SizedBox(height: AppSpacing.grid2),
           _ActionButtonRow(
             title: 'Join host',
-            description: 'Connect to the host address and sync the board.',
+            description: 'Connect to the host address as black.',
             onPressed: controller.busy
                 ? null
                 : () async {
@@ -524,7 +712,7 @@ class _ControlColumn extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.grid4),
           Text(
-            'Join address',
+            'Host address',
             style: Theme.of(context).textTheme.labelLarge,
           ),
           const SizedBox(height: AppSpacing.grid1),

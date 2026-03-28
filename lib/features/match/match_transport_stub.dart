@@ -15,7 +15,7 @@ class HostLaunchResult {
 class LocalMatchTransport {
   Future<HostLaunchResult> startHost({
     required Future<MatchSession> Function() readSession,
-    required Future<MatchSession> Function(int column) applyMove,
+    required Future<MatchSession> Function(ChessMove move) applyMove,
     required Future<MatchSession> Function() resetMatch,
     int preferredPort = 0,
   }) {
@@ -30,7 +30,7 @@ class LocalMatchTransport {
     );
   }
 
-  Future<MatchSession> submitMove(Uri baseUri, int column) {
+  Future<MatchSession> submitMove(Uri baseUri, ChessMove move) {
     throw UnsupportedError(
       'Local network match play is unavailable on this platform.',
     );

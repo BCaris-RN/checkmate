@@ -14,7 +14,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  testWidgets('renders the match shell', (tester) async {
+  testWidgets('renders the chess board with starting pieces', (tester) async {
     final controller = MatchController();
     unawaited(controller.bootstrap());
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -24,8 +24,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Checkmate by Caris'), findsOneWidget);
-    expect(find.text('Match controls'), findsOneWidget);
-    expect(find.text('Join address'), findsOneWidget);
-    expect(find.text('Share this address'), findsOneWidget);
+    expect(
+      find.text(
+        'White view: files a-h run left to right and ranks 1-8 run bottom to top.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('White to move'), findsWidgets);
+    expect(find.text('a'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
+    expect(find.text('♔'), findsOneWidget);
+    expect(find.text('♚'), findsOneWidget);
+    expect(find.text('♙'), findsAtLeastNWidgets(8));
+    expect(find.text('♟'), findsAtLeastNWidgets(8));
+    expect(find.text('Reset board'), findsOneWidget);
   });
 }

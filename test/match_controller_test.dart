@@ -37,11 +37,13 @@ class FakeMatchTransport extends LocalMatchTransport {
   int stopCount = 0;
   int startHostCount = 0;
   int fetchStateCount = 0;
+  int submitMoveCount = 0;
+  int resetCount = 0;
 
   @override
   Future<HostLaunchResult> startHost({
     required Future<MatchSession> Function() readSession,
-    required Future<MatchSession> Function(int column) applyMove,
+    required Future<MatchSession> Function(ChessMove move) applyMove,
     required Future<MatchSession> Function() resetMatch,
     int preferredPort = 0,
   }) async {
@@ -56,13 +58,17 @@ class FakeMatchTransport extends LocalMatchTransport {
   }
 
   @override
-  Future<MatchSession> submitMove(Uri baseUri, int column) {
-    throw UnimplementedError('submitMove is not used in these tests.');
+  Future<MatchSession> submitMove(Uri baseUri, ChessMove move) async {
+    submitMoveCount += 1;
+    fetchedSession = fetchedSession.playMove(move);
+    return fetchedSession;
   }
 
   @override
-  Future<MatchSession> reset(Uri baseUri) {
-    throw UnimplementedError('reset is not used in these tests.');
+  Future<MatchSession> reset(Uri baseUri) async {
+    resetCount += 1;
+    fetchedSession = MatchSession.initial();
+    return fetchedSession;
   }
 
   @override
@@ -131,5 +137,44 @@ void main() {
     expect(transport.stopCount, 2);
     expect(storage.saveCount, 2);
     expect(storage.savedState?.role, MatchRole.guest);
+  });
+
+  test('selecting and moving a piece updates the board', () async {
+    final storage = FakeMatchStorage();
+    final transport = FakeMatchTransport(
+      launchResult: HostLaunchResult(
+        uri: Uri.parse('http://192.168.1.10:5050'),
+        port: 5050,
+        lanAddress: '192.168.1.10',
+      ),
+    );
+    final controller = MatchController(
+      storage: storage,
+      transport: transport,
+    );
+
+    await controller.bootstrap();
+    await controller.tapSquare(4, 6);
+
+    expect(controller.selectedSquare, const ChessSquare(file: 4, row: 6));
+    expect(
+      controller.legalTargets,
+      contains(const ChessSquare(file: 4, row: 4)),
+    );
+
+    await controller.tapSquare(4, 4);
+
+    expect(controller.selectedSquare, isNull);
+    expect(
+      controller.session.board[4][4],
+      const ChessPiece(
+        color: ChessColor.white,
+        type: ChessPieceType.pawn,
+        hasMoved: true,
+      ),
+    );
+    expect(controller.session.activeColor, ChessColor.black);
+    expect(controller.turnSummary, 'Black to move');
+    expect(storage.saveCount, 1);
   });
 }
