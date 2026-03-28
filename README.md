@@ -1,16 +1,28 @@
 # checkmate_by_caris
 
-A new Flutter project.
+Checkmate by Caris is a governed Flutter match room for local hot-seat play and LAN host/join play.
 
-## Getting Started
+## What It Does
 
-This project is a starting point for a Flutter application.
+- Starts a local match on one device.
+- Hosts a match over the local network.
+- Joins a host, synchronizes state, and submits moves remotely.
+- Persists match state with `shared_preferences`.
+- Applies design tokens and guardrails through the repo scripts.
 
-A few resources to get you started if this is your first Flutter project:
+## Run
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```powershell
+flutter pub get
+flutter test
+flutter analyze
+python scripts/dependency_gate.py .
+python scripts/design_token_guard.py --root .
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/enforce_exclusion_zones.ps1 -RootDir .
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Notes
+
+- `publish_to: none` keeps the package private.
+- The repo includes a semantic bundle and governance templates for downstream automation.
+- The exclusion gate now fails closed without depending on `rg`.
