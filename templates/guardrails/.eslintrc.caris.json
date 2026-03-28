@@ -1,0 +1,17 @@
+﻿{
+  "root": true,
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["**/legacy_api_folder/**", "**/deprecated_utils/**"],
+            "message": "VIOLATION: DEPENDENCY ON DEPRECATED SOURCE. The Senior Architect mandates the new v2 service layer."
+          }
+        ]
+      }
+    ]
+  }
+}

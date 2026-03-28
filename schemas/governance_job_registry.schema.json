@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Governance Job Registry",
+  "description": "Caris contract for a curated, closed registry of governance job descriptors.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runtime": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "activeProfile": {
+      "type": "string",
+      "enum": [
+        "flutter",
+        "nextjs_react",
+        "universal"
+      ]
+    },
+    "curation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "authority": {
+          "type": "string",
+          "enum": [
+            "caris"
+          ]
+        },
+        "curated": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "marketplaceMode": {
+          "type": "string",
+          "enum": [
+            "closed"
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "authority",
+        "curated",
+        "marketplaceMode",
+        "notes"
+      ]
+    },
+    "jobs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "runtime": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "activeProfile": {
+            "type": "string",
+            "enum": [
+              "flutter",
+              "nextjs_react",
+              "universal"
+            ]
+          },
+          "manifestRef": {
+            "type": "string",
+            "minLength": 1
+          },
+          "requiredEnvKeys": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$"
+            },
+            "uniqueItems": true
+          },
+          "riskTier": {
+            "type": "string",
+            "enum": [
+              "low",
+              "moderate",
+              "high",
+              "critical"
+            ]
+          },
+          "allowedActions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "write",
+                "apply",
+                "execute",
+                "release",
+                "publish"
+              ]
+            },
+            "uniqueItems": true
+          },
+          "gates": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "auditRoute": {
+                "type": "string",
+                "enum": [
+                  "self_certify",
+                  "standard_audit",
+                  "stop_and_think"
+                ]
+              },
+              "hardGateIds": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "uniqueItems": true
+              },
+              "requiresWhitelistValidation": {
+                "type": "boolean"
+              },
+              "requiresSchemaValidation": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "auditRoute",
+              "hardGateIds",
+              "requiresWhitelistValidation",
+              "requiresSchemaValidation"
+            ]
+          },
+          "runsParser": {
+            "type": "boolean"
+          },
+          "requiresZip": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "runtime",
+          "activeProfile",
+          "manifestRef",
+          "requiredEnvKeys",
+          "riskTier",
+          "allowedActions",
+          "gates",
+          "runsParser",
+          "requiresZip"
+        ]
+      }
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "description",
+    "runtime",
+    "activeProfile",
+    "curation",
+    "jobs"
+  ]
+}

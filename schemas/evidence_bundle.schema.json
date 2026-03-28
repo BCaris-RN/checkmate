@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evidence Bundle",
+  "description": "Caris contract for machine-readable audit, provenance, and release evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "route": {
+      "type": "string",
+      "enum": [
+        "self_certify",
+        "standard_audit",
+        "stop_and_think"
+      ]
+    },
+    "runtime": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "activeProfile": {
+      "type": "string",
+      "enum": [
+        "flutter",
+        "nextjs_react",
+        "universal"
+      ]
+    },
+    "policySnapshotRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "gateResults": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "gateId": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "skipped",
+              "warning"
+            ]
+          },
+          "details": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "gateId",
+          "status",
+          "details"
+        ]
+      }
+    },
+    "dependencyStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "validated": {
+          "type": "boolean"
+        },
+        "authorityRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "validated",
+        "authorityRef",
+        "violations"
+      ]
+    },
+    "tokenStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "validated": {
+          "type": "boolean"
+        },
+        "lockfileRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "validated",
+        "lockfileRef",
+        "violations"
+      ]
+    },
+    "provenanceRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "authorship_manifest",
+              "attestation",
+              "build_record",
+              "revision_anchor",
+              "release_evidence",
+              "other"
+            ]
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "kind",
+          "ref",
+          "sha256"
+        ]
+      }
+    },
+    "artifactHashes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ]
+      }
+    },
+    "releaseNotesRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "id",
+    "route",
+    "runtime",
+    "activeProfile",
+    "policySnapshotRef",
+    "gateResults",
+    "dependencyStatus",
+    "tokenStatus",
+    "provenanceRefs",
+    "artifactHashes",
+    "releaseNotesRefs"
+  ]
+}

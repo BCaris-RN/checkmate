@@ -1,0 +1,26 @@
+{
+  "id": "anti_slop_design",
+  "title": "Enforce Anti-Slop Design",
+  "description": "Run design token guard against the governed repository and stop non-compliant UI output.",
+  "runtime": "phoenix",
+  "activeProfile": "flutter",
+  "requiredEnvKeys": [],
+  "riskTier": "high",
+  "allowedActions": ["execute"],
+  "outputs": [
+    {
+      "outputId": "pipeline_log",
+      "description": "Execution log written by CP Super Stack.",
+      "path": ".codedrop/logs/",
+      "kind": "log"
+    }
+  ],
+  "gates": {
+    "auditRoute": "stop_and_think",
+    "hardGateIds": ["design_token_guard"],
+    "requiresWhitelistValidation": false,
+    "requiresSchemaValidation": true
+  },
+  "runsParser": false,
+  "requiresZip": false
+}

@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "authority_document": "docs/architecture/004_EXTERNAL_LIBS_AND_RESOURCES.md",
+  "target_runtime": "phoenix",
+  "active_profile": "flutter",
+  "notes": [
+    "Caris is the maintained authority for this allowlist.",
+    "The active Phoenix runtime profile remains flutter.",
+    "This artifact is the Flutter split-path export subset seeded from the current Phoenix allowlist source material.",
+    "JavaScript and Python entries are retained from the current governed runtime as helper and release surfaces; they do not activate React or Universal doctrine."
+  ],
+  "approved_dependencies": {
+    "dart": [
+      "archive",
+      "cupertino_icons",
+      "file_selector",
+      "file_selector_windows",
+      "flutter_lints",
+      "google_fonts",
+      "path",
+      "path_provider",
+      "process_run",
+      "provider",
+      "shared_preferences",
+      "yaml",
+      "yaml_edit"
+    ],
+    "javascript": [
+      "dotenv",
+      "express"
+    ],
+    "python": [
+      "fastapi",
+      "google-api-python-client",
+      "google-auth",
+      "google-auth-httplib2",
+      "google-auth-oauthlib",
+      "html5lib",
+      "lxml",
+      "pandas",
+      "playwright",
+      "pydantic",
+      "python-dotenv",
+      "requests",
+      "uvicorn"
+    ]
+  }
+}

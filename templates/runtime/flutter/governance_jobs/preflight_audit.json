@@ -1,0 +1,32 @@
+{
+  "id": "preflight_audit",
+  "title": "Run Pre-Flight Audit",
+  "description": "Run preflight checks, complexity routing, and semantic bundle guidance before execution.",
+  "runtime": "phoenix",
+  "activeProfile": "flutter",
+  "requiredEnvKeys": [],
+  "riskTier": "moderate",
+  "allowedActions": ["execute", "write"],
+  "outputs": [
+    {
+      "outputId": "semantic_bundle",
+      "description": "Semantic bundle guidance for downstream IDE review.",
+      "path": "SEMANTIC_BUNDLE.txt",
+      "kind": "bundle"
+    },
+    {
+      "outputId": "pipeline_log",
+      "description": "Execution log written by CP Super Stack.",
+      "path": ".codedrop/logs/",
+      "kind": "log"
+    }
+  ],
+  "gates": {
+    "auditRoute": "standard_audit",
+    "hardGateIds": ["complexity_gate", "semantic_risk_scan"],
+    "requiresWhitelistValidation": false,
+    "requiresSchemaValidation": true
+  },
+  "runsParser": false,
+  "requiresZip": false
+}

@@ -1,0 +1,41 @@
+{
+  "id": "ingest_ai_feature",
+  "title": "Ingest AI Feature",
+  "description": "Use the Clean Room parser workflow to preview and apply controlled feature writes under hard-gate control.",
+  "runtime": "phoenix",
+  "activeProfile": "flutter",
+  "requiredEnvKeys": [
+    "AI_PROVIDER_LABEL",
+    "AI_ENDPOINT_URL",
+    "AI_MODEL",
+    "AI_API_KEY"
+  ],
+  "riskTier": "high",
+  "allowedActions": ["execute", "write"],
+  "outputs": [
+    {
+      "outputId": "semantic_bundle",
+      "description": "Regenerated semantic bundle after governed feature ingestion.",
+      "path": "SEMANTIC_BUNDLE.txt",
+      "kind": "bundle"
+    },
+    {
+      "outputId": "pipeline_log",
+      "description": "Execution log written by CP Super Stack.",
+      "path": ".codedrop/logs/",
+      "kind": "log"
+    }
+  ],
+  "gates": {
+    "auditRoute": "stop_and_think",
+    "hardGateIds": [
+      "complexity_gate",
+      "design_token_guard",
+      "semantic_risk_scan"
+    ],
+    "requiresWhitelistValidation": true,
+    "requiresSchemaValidation": true
+  },
+  "runsParser": true,
+  "requiresZip": true
+}

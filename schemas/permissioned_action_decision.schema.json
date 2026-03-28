@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Permissioned Action Decision",
+  "description": "Caris contract for a typed decision on a side-effect request.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "requestId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "runtime": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "activeProfile": {
+      "type": "string",
+      "enum": [
+        "flutter",
+        "nextjs_react",
+        "universal"
+      ]
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "write",
+        "apply",
+        "execute",
+        "release",
+        "publish"
+      ]
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "approved",
+        "rejected",
+        "needs_human_review"
+      ]
+    },
+    "decidedBy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "auditRoute": {
+      "type": "string",
+      "enum": [
+        "self_certify",
+        "standard_audit",
+        "stop_and_think"
+      ]
+    },
+    "requiredGates": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      },
+      "uniqueItems": true
+    },
+    "approvedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "rejectedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "evidenceBundleRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "policySnapshotRef": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "id",
+    "requestId",
+    "runtime",
+    "activeProfile",
+    "action",
+    "decision",
+    "decidedBy",
+    "rationale",
+    "auditRoute",
+    "requiredGates",
+    "approvedPaths",
+    "rejectedPaths",
+    "evidenceBundleRefs",
+    "policySnapshotRef"
+  ]
+}

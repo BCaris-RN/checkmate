@@ -1,0 +1,24 @@
+# Caris constitutional template for Phoenix runtime governance.
+# Template only. Downstream runtimes may materialize a local instance from this
+# file, but this file remains the maintained authority.
+# Active Phoenix split profile: flutter
+# Target runtime: phoenix
+# Fail closed if the downstream runtime cannot load or parse the instantiated
+# governance file.
+
+active_profile: flutter
+
+governance:
+  complexity_gate:
+    enabled: true
+
+  semantic_risk_scan:
+    enabled: true
+
+  design_token_guard:
+    enabled: true
+    use_custom_brand_schema: false
+    custom_lockfile_path: "templates/guardrails/design_tokens.lock.json"
+
+  legal_006_audit:
+    enabled: true

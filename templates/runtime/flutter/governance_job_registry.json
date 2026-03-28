@@ -1,0 +1,100 @@
+{
+  "id": "caris_flutter_governed_jobs",
+  "title": "Caris Flutter Governed Job Registry",
+  "description": "Closed curated governed job registry for the Phoenix Flutter runtime.",
+  "runtime": "phoenix",
+  "activeProfile": "flutter",
+  "curation": {
+    "authority": "caris",
+    "curated": true,
+    "marketplaceMode": "closed",
+    "notes": "Curated constitutional registry for Phoenix. No arbitrary plugin or marketplace job expansion."
+  },
+  "jobs": [
+    {
+      "id": "preflight_audit",
+      "title": "Run Pre-Flight Audit",
+      "description": "Run preflight checks, hard-gate complexity routing, and generate semantic bundle guidance for IDE review.",
+      "runtime": "phoenix",
+      "activeProfile": "flutter",
+      "manifestRef": "templates/runtime/flutter/governance_jobs/preflight_audit.json",
+      "requiredEnvKeys": [],
+      "riskTier": "moderate",
+      "allowedActions": ["execute", "write"],
+      "gates": {
+        "auditRoute": "standard_audit",
+        "hardGateIds": ["complexity_gate", "semantic_risk_scan"],
+        "requiresWhitelistValidation": false,
+        "requiresSchemaValidation": true
+      },
+      "runsParser": false,
+      "requiresZip": false
+    },
+    {
+      "id": "baseline_install_repair",
+      "title": "Install or Repair Caris Stack Baseline",
+      "description": "Seed or repair docs, scripts, templates, and baseline governance files in the selected repository.",
+      "runtime": "phoenix",
+      "activeProfile": "flutter",
+      "manifestRef": "templates/runtime/flutter/governance_jobs/baseline_install_repair.json",
+      "requiredEnvKeys": [],
+      "riskTier": "high",
+      "allowedActions": ["write"],
+      "gates": {
+        "auditRoute": "self_certify",
+        "hardGateIds": ["baseline_authority_resolution"],
+        "requiresWhitelistValidation": false,
+        "requiresSchemaValidation": true
+      },
+      "runsParser": false,
+      "requiresZip": false
+    },
+    {
+      "id": "anti_slop_design",
+      "title": "Enforce Anti-Slop Design",
+      "description": "Run design token guard and block non-compliant UI output.",
+      "runtime": "phoenix",
+      "activeProfile": "flutter",
+      "manifestRef": "templates/runtime/flutter/governance_jobs/anti_slop_design.json",
+      "requiredEnvKeys": [],
+      "riskTier": "high",
+      "allowedActions": ["execute"],
+      "gates": {
+        "auditRoute": "stop_and_think",
+        "hardGateIds": ["design_token_guard"],
+        "requiresWhitelistValidation": false,
+        "requiresSchemaValidation": true
+      },
+      "runsParser": false,
+      "requiresZip": false
+    },
+    {
+      "id": "ingest_ai_feature",
+      "title": "Ingest AI Feature",
+      "description": "Open Clean Room parser, preview staged files, and apply controlled writes.",
+      "runtime": "phoenix",
+      "activeProfile": "flutter",
+      "manifestRef": "templates/runtime/flutter/governance_jobs/ingest_ai_feature.json",
+      "requiredEnvKeys": [
+        "AI_PROVIDER_LABEL",
+        "AI_ENDPOINT_URL",
+        "AI_MODEL",
+        "AI_API_KEY"
+      ],
+      "riskTier": "high",
+      "allowedActions": ["execute", "write"],
+      "gates": {
+        "auditRoute": "stop_and_think",
+        "hardGateIds": [
+          "complexity_gate",
+          "design_token_guard",
+          "semantic_risk_scan"
+        ],
+        "requiresWhitelistValidation": true,
+        "requiresSchemaValidation": true
+      },
+      "runsParser": true,
+      "requiresZip": true
+    }
+  ]
+}

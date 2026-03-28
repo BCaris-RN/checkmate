@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Policy Snapshot",
+  "description": "Caris contract for machine-readable policy state derived from executable truth or validated constitutional export surfaces.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "sourceType": {
+      "type": "string",
+      "enum": [
+        "executable_policy_constants",
+        "validated_export_surface",
+        "mixed"
+      ]
+    },
+    "sourceFiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "runtime": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "activeProfile": {
+      "type": "string",
+      "enum": [
+        "flutter",
+        "nextjs_react",
+        "universal"
+      ]
+    },
+    "generatedAt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stackVersionTag": {
+      "type": "string",
+      "minLength": 1
+    },
+    "whitelistAuthorityRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "auditRoutingSourceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "hardGateRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "complexityThresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "low": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "high": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "low",
+        "high"
+      ]
+    },
+    "complexityRoutingSummary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "governanceDocBasenames": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "highRiskExactPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "highRiskPrefixes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "tokenPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scaleRatio": {
+          "type": "number",
+          "minimum": 0
+        },
+        "baselineGridPx": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "scaleRatio",
+        "baselineGridPx"
+      ]
+    },
+    "sovereignSeal": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "id",
+    "sourceType",
+    "sourceFiles",
+    "runtime",
+    "activeProfile",
+    "generatedAt",
+    "stackVersionTag",
+    "whitelistAuthorityRefs",
+    "auditRoutingSourceRefs",
+    "hardGateRefs",
+    "complexityThresholds",
+    "complexityRoutingSummary",
+    "governanceDocBasenames",
+    "highRiskExactPaths",
+    "highRiskPrefixes",
+    "tokenPolicy",
+    "sovereignSeal"
+  ]
+}

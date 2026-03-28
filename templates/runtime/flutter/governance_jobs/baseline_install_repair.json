@@ -1,0 +1,32 @@
+{
+  "id": "baseline_install_repair",
+  "title": "Install or Repair Caris Stack Baseline",
+  "description": "Seed or repair governance docs, scripts, templates, and baseline files in the selected repository.",
+  "runtime": "phoenix",
+  "activeProfile": "flutter",
+  "requiredEnvKeys": [],
+  "riskTier": "high",
+  "allowedActions": ["write"],
+  "outputs": [
+    {
+      "outputId": "baseline_manifest",
+      "description": "Baseline install or repair manifest.",
+      "path": "CARIS_STACK_BASELINE.txt",
+      "kind": "report"
+    },
+    {
+      "outputId": "governance_file",
+      "description": "Downstream governance configuration file.",
+      "path": "phoenix_governance.yaml",
+      "kind": "file"
+    }
+  ],
+  "gates": {
+    "auditRoute": "self_certify",
+    "hardGateIds": ["baseline_authority_resolution"],
+    "requiresWhitelistValidation": false,
+    "requiresSchemaValidation": true
+  },
+  "runsParser": false,
+  "requiresZip": false
+}
