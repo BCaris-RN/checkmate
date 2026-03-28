@@ -150,6 +150,7 @@ class MatchController extends ChangeNotifier {
         throw const MatchRuleError('Enter a valid port number.');
       }
 
+      await _stopNetwork();
       final baseUri = Uri.parse('http://$cleanedAddress:$port');
       final initialState = await _transport.fetchState(baseUri);
       _session = initialState;
@@ -274,6 +275,10 @@ class MatchController extends ChangeNotifier {
     _pollTimer = null;
     _hostUri = null;
     _joinUri = null;
+    _hostAddress = null;
+    _hostPort = null;
+    _joinAddress = null;
+    _joinPort = null;
     await _transport.stop();
   }
 
