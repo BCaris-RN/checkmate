@@ -1,12 +1,19 @@
 # checkmate_by_caris
 
-Checkmate by Caris is a governed Flutter chess board with unlockable 2.5D sets for local hot-seat play and LAN host/join play.
+Checkmate by Caris is a governed Flutter chess platform built to deliver real chess play, unlockable 2.5D themed sets, and audited release paths that can ship safely from GitHub.
+
+## Why It Exists
+
+- Turn a playable chess product into a governed release system instead of a loose prototype.
+- Keep the board, rules, themes, and delivery paths aligned across web, Windows, Android, and LAN play.
+- Use Caris / Phoenix controls to make AI-assisted development deterministic, inspectable, and safe to release.
 
 ## What It Does
 
 - Starts a local match on one device.
 - Hosts a match over the local network.
 - Joins a host, synchronizes state, and submits moves remotely.
+- Lets the browser build host and join matches between tabs in the same browser profile.
 - Renders a real chess board with white-view coordinates and visible pieces.
 - Unlocks themed chess sets as you level up.
 - Persists match state with `shared_preferences`.
