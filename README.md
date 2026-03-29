@@ -41,5 +41,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/enforce_exclusion_zo
 ## Notes
 
 - `publish_to: none` keeps the package private.
-- The repo includes a semantic bundle and governance templates for downstream automation.
+- The private Caris stack content lives locally under `.caris_stack/` and is excluded from GitHub.
 - The exclusion gate now fails closed without depending on `rg`.
