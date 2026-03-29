@@ -47,6 +47,8 @@ class MatchController extends ChangeNotifier {
   bool get isHosted => _role == MatchRole.host && _hostUri != null;
   bool get isJoined => _role == MatchRole.guest && _joinUri != null;
   bool get isLocal => _role == MatchRole.local;
+  bool get isBrowserRoomHost => kIsWeb && _role == MatchRole.host && _hostUri != null;
+  bool get isBrowserRoomGuest => kIsWeb && _role == MatchRole.guest && _joinUri != null;
   int get careerXp => _careerXp;
   static const int _xpPerLevel = 8;
 
@@ -76,6 +78,16 @@ class MatchController extends ChangeNotifier {
     return 'Next unlock: ${nextTheme.name} at level ${nextTheme.unlockLevel}.';
   }
 
+  String? get hostShareText {
+    if (_hostUri != null && kIsWeb) {
+      return _hostUri.toString();
+    }
+    if (_hostAddress != null && _hostPort != null) {
+      return '$_hostAddress:$_hostPort';
+    }
+    return null;
+  }
+
   List<ChessSquare> get legalTargets {
     final square = _selectedSquare;
     if (square == null) {
@@ -88,17 +100,29 @@ class MatchController extends ChangeNotifier {
   }
 
   String get connectionSummary {
-    return switch (_role) {
-      MatchRole.local => 'Local chess on this device',
-      MatchRole.host => _hostUri == null
-          ? 'Host setup ready'
-          : _hostAddress == null
-              ? 'Hosting white side on port ${_hostPort ?? _hostUri!.port}'
-              : 'Hosting white side at $_hostAddress:${_hostPort ?? _hostUri!.port}',
-      MatchRole.guest => _joinUri == null
-          ? 'Join setup ready'
-          : 'Joined black side at ${_joinAddress ?? _joinUri!.host}:${_joinPort ?? _joinUri!.port}',
-    };
+    switch (_role) {
+      case MatchRole.local:
+        return 'Local chess on this device';
+      case MatchRole.host:
+        if (_hostUri == null) {
+          return 'Host setup ready';
+        }
+        if (kIsWeb) {
+          return 'Browser room ready';
+        }
+        if (_hostAddress == null) {
+          return 'Hosting white side on port ${_hostPort ?? _hostUri!.port}';
+        }
+        return 'Hosting white side at $_hostAddress:${_hostPort ?? _hostUri!.port}';
+      case MatchRole.guest:
+        if (_joinUri == null) {
+          return 'Join setup ready';
+        }
+        if (kIsWeb) {
+          return 'Joined browser room';
+        }
+        return 'Joined black side at ${_joinAddress ?? _joinUri!.host}:${_joinPort ?? _joinUri!.port}';
+    }
   }
 
   String get seatSummary {
@@ -153,13 +177,23 @@ class MatchController extends ChangeNotifier {
       _selectedThemeId = ChessSetCatalog.themeForLevel(playerLevel).id;
     }
     _hostAddress = saved.hostAddress;
-    _hostPort = saved.hostPort;
+    _hostPort = kIsWeb && saved.hostPort == 0 ? null : saved.hostPort;
     _joinAddress = saved.joinAddress;
-    _joinPort = saved.joinPort;
-    _hostUri = null;
-    _joinUri = null;
+    _joinPort = kIsWeb && saved.joinPort == 0 ? null : saved.joinPort;
+    _hostUri = kIsWeb && _role == MatchRole.host && _hostAddress != null
+        ? _browserRoomUri(_hostAddress!)
+        : null;
+    _joinUri = kIsWeb && _role == MatchRole.guest && _joinAddress != null
+        ? _browserRoomUri(_joinAddress!)
+        : null;
     _selectedSquare = null;
-    _notice = 'Saved chess position restored. Reconnect host or join to resume LAN play.';
+    _notice = kIsWeb && _syncUri != null
+        ? 'Saved browser room restored.'
+        : 'Saved chess position restored. Reconnect host or join to resume LAN play.';
+    if (_syncUri != null) {
+      _startPolling();
+      unawaited(refreshFromHost(silent: true));
+    }
     notifyListeners();
   }
 
@@ -185,15 +219,20 @@ class MatchController extends ChangeNotifier {
 
       _role = MatchRole.host;
       _hostAddress = launch.lanAddress;
-      _hostPort = launch.port;
+      _hostPort = launch.port == 0 ? null : launch.port;
       _hostUri = launch.uri;
       _joinUri = null;
       _selectedSquare = null;
-      _notice = launch.lanAddress == null
-          ? 'Host is live on port ${launch.port}, but no LAN address was detected.'
-          : 'Share ${launch.lanAddress}:${launch.port} with the other device.';
+      _notice = kIsWeb
+          ? 'Browser room ready. Share the invite link with another tab.'
+          : launch.lanAddress == null
+              ? 'Host is live on port ${launch.port}, but no LAN address was detected.'
+              : 'Share ${launch.lanAddress}:${launch.port} with the other device.';
       _pollErrorShown = false;
       await _persist();
+      if (_syncUri != null) {
+        _startPolling();
+      }
     });
   }
 
@@ -204,23 +243,36 @@ class MatchController extends ChangeNotifier {
     await _runBusy(() async {
       final cleanedAddress = address.trim();
       if (cleanedAddress.isEmpty) {
-        throw const MatchRuleError('Enter the host address first.');
+        throw MatchRuleError(
+          kIsWeb
+              ? 'Enter the invite link or room code first.'
+              : 'Enter the host address first.',
+        );
       }
-      if (port <= 0 || port > 65535) {
+      if (!kIsWeb && (port <= 0 || port > 65535)) {
         throw const MatchRuleError('Enter a valid port number.');
       }
 
       await _stopNetwork();
-      final baseUri = Uri.parse('http://$cleanedAddress:$port');
+      final browserRoomCode =
+          kIsWeb ? _browserRoomCodeFromInput(cleanedAddress) : null;
+      if (kIsWeb && (browserRoomCode == null || browserRoomCode.isEmpty)) {
+        throw const MatchRuleError('Enter a valid invite link or room code.');
+      }
+      final baseUri = kIsWeb
+          ? _browserRoomUri(browserRoomCode!)
+          : Uri.parse('http://$cleanedAddress:$port');
       final initialState = await _transport.fetchState(baseUri);
       _session = initialState;
       _role = MatchRole.guest;
-      _joinAddress = cleanedAddress;
-      _joinPort = port;
+      _joinAddress = kIsWeb ? browserRoomCode : cleanedAddress;
+      _joinPort = kIsWeb ? null : port;
       _joinUri = baseUri;
       _hostUri = null;
       _selectedSquare = null;
-      _notice = 'Connected to $cleanedAddress:$port.';
+      _notice = kIsWeb
+          ? 'Connected to browser room.'
+          : 'Connected to $cleanedAddress:$port.';
       _pollErrorShown = false;
       _startPolling();
       await _persist();
@@ -228,7 +280,7 @@ class MatchController extends ChangeNotifier {
   }
 
   Future<void> refreshFromHost({bool silent = false}) async {
-    final uri = _joinUri;
+    final uri = _syncUri;
     if (uri == null) {
       return;
     }
@@ -302,8 +354,10 @@ class MatchController extends ChangeNotifier {
         throw MatchRuleError('No piece is on ${move.from.notation}.');
       }
 
-      if (_role == MatchRole.guest && _joinUri != null) {
-        final fresh = await _transport.submitMove(_joinUri!, move);
+      final syncUri = _syncUri;
+      if (syncUri != null &&
+          (_role == MatchRole.guest || (kIsWeb && _role == MatchRole.host))) {
+        final fresh = await _transport.submitMove(syncUri, move);
         _session = fresh;
         _notice = fresh.note;
         _selectedSquare = null;
@@ -322,8 +376,12 @@ class MatchController extends ChangeNotifier {
 
   Future<void> resetMatch() async {
     await _runBusy(() async {
-      final remote = _role == MatchRole.guest && _joinUri != null;
-      _session = remote ? await _transport.reset(_joinUri!) : _session.reset();
+      final syncUri = _syncUri;
+      if (syncUri == null) {
+        _session = _session.reset();
+      } else {
+        _session = await _transport.reset(syncUri);
+      }
       _notice = _session.note;
       _selectedSquare = null;
       _pollErrorShown = false;
@@ -486,6 +544,52 @@ class MatchController extends ChangeNotifier {
       const Duration(milliseconds: 850),
       (_) => unawaited(refreshFromHost(silent: true)),
     );
+  }
+
+  Uri get _browserRoomUriFallback => Uri.base;
+
+  Uri _browserRoomUri(String roomCode) {
+    final normalized = roomCode.trim();
+    final base = _browserRoomUriFallback;
+    return base.replace(
+      queryParameters: <String, String>{'room': normalized},
+    );
+  }
+
+  String? _browserRoomCodeFromInput(String input) {
+    final cleaned = input.trim();
+    if (cleaned.isEmpty) {
+      return null;
+    }
+
+    final parsed = Uri.tryParse(cleaned);
+    if (parsed == null) {
+      return cleaned;
+    }
+
+    final queryRoom = parsed.queryParameters['room']?.trim();
+    if (queryRoom != null && queryRoom.isNotEmpty) {
+      return queryRoom;
+    }
+
+    if (parsed.pathSegments.isNotEmpty) {
+      final last = parsed.pathSegments.last.trim();
+      if (last.isNotEmpty) {
+        return last;
+      }
+    }
+
+    return cleaned;
+  }
+
+  Uri? get _syncUri {
+    if (_role == MatchRole.guest) {
+      return _joinUri;
+    }
+    if (kIsWeb && _role == MatchRole.host) {
+      return _hostUri;
+    }
+    return null;
   }
 
   String _friendlyError(Object error) {

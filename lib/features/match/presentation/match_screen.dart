@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -729,6 +731,7 @@ class _ControlColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = controller.activeTheme;
+    final isWeb = kIsWeb;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.grid4),
@@ -747,7 +750,9 @@ class _ControlColumn extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.grid1),
           Text(
-            'Local chess works immediately. Hosting makes this device white; joining makes it black.',
+            isWeb
+                ? 'Browser rooms work between tabs in the same browser profile. Local chess still works immediately.'
+                : 'Local chess works immediately. Hosting makes this device white; joining makes it black.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.grid4),
@@ -759,22 +764,33 @@ class _ControlColumn extends StatelessWidget {
           const SizedBox(height: AppSpacing.grid2),
           _ActionButtonRow(
             title: 'Host this device',
-            description: 'Starts the local server as the white side.',
+            description: isWeb
+                ? 'Starts a browser room as the white side.'
+                : 'Starts the local server as the white side.',
             onPressed: controller.busy ? null : controller.hostMatch,
           ),
           const SizedBox(height: AppSpacing.grid2),
           _ActionButtonRow(
             title: 'Join host',
-            description: 'Connect to the host address as black.',
+            description: isWeb
+                ? 'Connect to the invite link or room code as black.'
+                : 'Connect to the host address as black.',
             onPressed: controller.busy
                 ? null
                 : () async {
                     try {
-                      final port = int.parse(portController.text.trim());
-                      await controller.joinHost(
-                        address: hostController.text,
-                        port: port,
-                      );
+                      if (isWeb) {
+                        await controller.joinHost(
+                          address: hostController.text,
+                          port: 0,
+                        );
+                      } else {
+                        final port = int.parse(portController.text.trim());
+                        await controller.joinHost(
+                          address: hostController.text,
+                          port: port,
+                        );
+                      }
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Connected.')),
@@ -791,30 +807,32 @@ class _ControlColumn extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.grid4),
           Text(
-            'Host address',
+            isWeb ? 'Invite link or room code' : 'Host address',
             style: Theme.of(context).textTheme.labelLarge,
           ),
           const SizedBox(height: AppSpacing.grid1),
           TextField(
             controller: hostController,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              hintText: '192.168.1.10',
+            textInputAction: isWeb ? TextInputAction.done : TextInputAction.next,
+            decoration: InputDecoration(
+              hintText: isWeb ? 'https://.../?room=ABC123' : '192.168.1.10',
             ),
           ),
-          const SizedBox(height: AppSpacing.grid2),
-          Text(
-            'Port',
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-          const SizedBox(height: AppSpacing.grid1),
-          TextField(
-            controller: portController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              hintText: '5050',
-                  ),
-          ),
+          if (!isWeb) ...[
+            const SizedBox(height: AppSpacing.grid2),
+            Text(
+              'Port',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            const SizedBox(height: AppSpacing.grid1),
+            TextField(
+              controller: portController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                hintText: '5050',
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.grid4),
           _CareerProgressPanel(controller: controller, theme: theme),
           const SizedBox(height: AppSpacing.grid4),
@@ -1230,11 +1248,11 @@ class _HostDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hostText = controller.isHosted &&
-            controller.hostAddress != null &&
-            controller.hostPort != null
-        ? '${controller.hostAddress}:${controller.hostPort}'
-        : 'Host this device to generate a shareable address.';
+    final isWeb = kIsWeb;
+    final shareText = controller.hostShareText;
+    final hostText = shareText ?? (isWeb
+        ? 'Host this device to generate a shareable browser invite.'
+        : 'Host this device to generate a shareable address.');
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.grid4),
@@ -1247,7 +1265,7 @@ class _HostDetails extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Share this address',
+            isWeb ? 'Share this invite link' : 'Share this address',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: AppColors.accent,
                 ),
@@ -1261,21 +1279,27 @@ class _HostDetails extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.grid2),
           OutlinedButton(
-            onPressed: controller.isHosted &&
-                    controller.hostAddress != null &&
-                    controller.hostPort != null
+            onPressed: shareText != null
                 ? () async {
+                    final shareValue = controller.hostShareText;
+                    if (shareValue == null) {
+                      return;
+                    }
                     await Clipboard.setData(
-                      ClipboardData(text: '${controller.hostAddress}:${controller.hostPort}'),
+                      ClipboardData(text: shareValue),
                     );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Address copied.')),
+                        SnackBar(
+                          content: Text(
+                            isWeb ? 'Invite link copied.' : 'Address copied.',
+                          ),
+                        ),
                       );
                     }
                   }
                 : null,
-            child: const Text('Copy address'),
+            child: Text(isWeb ? 'Copy invite link' : 'Copy address'),
           ),
         ],
       ),

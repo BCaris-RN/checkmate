@@ -18,6 +18,7 @@ Checkmate by Caris is a governed Flutter chess board with unlockable 2.5D sets f
 - Once GitHub Pages is pointed at that branch in repo settings, the browser build will be playable from GitHub at `https://BCaris-RN.github.io/checkmate/`.
 - The same workflow uploads the web build and Windows release as downloadable artifacts in GitHub Actions.
 - Web builds use the `/checkmate/` base path so the app works correctly when served from the repository subpath.
+- In the browser, host/join play works between tabs in the same browser profile by sharing the invite link or room code.
 
 ## Run
 
