@@ -10,6 +10,7 @@ import '../../../core/tokens/design_tokens.g.dart';
 import '../chess_set_themes.dart';
 import '../match_controller.dart';
 import '../match_models.dart';
+import 'launch_screen.dart';
 
 class MatchScreen extends StatefulWidget {
   const MatchScreen({super.key});
@@ -116,6 +117,8 @@ class _TopBar extends StatelessWidget {
     final titleBlock = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const BrandStamp(compact: true),
+        const SizedBox(height: AppSpacing.grid2),
         Text(
           'Checkmate by Caris',
           style: Theme.of(context).textTheme.displayMedium,
