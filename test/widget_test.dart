@@ -30,6 +30,12 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(
+      find.text(
+        'Single-device note: progress saves on this device. Use Host/Join for Wi-Fi or hotspot play.',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('White to move'), findsWidgets);
     expect(find.text('a'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);

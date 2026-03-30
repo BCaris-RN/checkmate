@@ -128,6 +128,15 @@ class _TopBar extends StatelessWidget {
           'White view: files a-h run left to right and ranks 1-8 run bottom to top.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
+        const SizedBox(height: AppSpacing.grid1),
+        Text(
+          kIsWeb
+              ? 'Web note: progress saves in this browser profile only. Two people can play here from two tabs on the same computer.'
+              : 'Single-device note: progress saves on this device. Use Host/Join for Wi-Fi or hotspot play.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textMuted,
+              ),
+        ),
       ],
     );
 
@@ -768,7 +777,7 @@ class _ControlColumn extends StatelessWidget {
           _ActionButtonRow(
             title: 'Host this device',
             description: isWeb
-                ? 'Starts a browser room as the white side.'
+                ? 'Starts a browser room for a second tab as the white side.'
                 : 'Starts the local server as the white side.',
             onPressed: controller.busy ? null : controller.hostMatch,
           ),
@@ -776,7 +785,7 @@ class _ControlColumn extends StatelessWidget {
           _ActionButtonRow(
             title: 'Join host',
             description: isWeb
-                ? 'Connect to the invite link or room code as black.'
+                ? 'Connect to the invite link or room code in another tab as black.'
                 : 'Connect to the host address as black.',
             onPressed: controller.busy
                 ? null

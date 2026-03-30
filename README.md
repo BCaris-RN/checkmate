@@ -26,6 +26,7 @@ Checkmate by Caris is a governed Flutter chess platform built to deliver real ch
 - The same workflow uploads the web build and Windows release as downloadable artifacts in GitHub Actions.
 - Web builds use the `/checkmate/` base path so the app works correctly when served from the repository subpath.
 - In the browser, host/join play works between tabs in the same browser profile by sharing the invite link or room code.
+- Browser progress saves in the current browser profile only; separate devices do not share unlocks.
 
 ## Run
 
