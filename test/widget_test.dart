@@ -30,6 +30,9 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('Timer settings', skipOffstage: false), findsOneWidget);
+    expect(find.text('Analytics', skipOffstage: false), findsOneWidget);
+    expect(find.text('Pass device', skipOffstage: false), findsOneWidget);
     expect(
       find.text(
         'Single-device note: progress saves on this device. Use Host/Join for Wi-Fi or hotspot play.',

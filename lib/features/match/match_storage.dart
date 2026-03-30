@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'match_models.dart';
+import 'match_time.dart';
 
 class MatchPersistedState {
   const MatchPersistedState({
@@ -14,6 +15,11 @@ class MatchPersistedState {
     required this.joinPort,
     required this.careerXp,
     required this.selectedThemeId,
+    required this.whiteAtBottom,
+    required this.awaitingHandOff,
+    required this.clockPreset,
+    required this.analyticsSinkUrl,
+    required this.turnStartedAtUtc,
   });
 
   final MatchSession session;
@@ -24,6 +30,11 @@ class MatchPersistedState {
   final int? joinPort;
   final int careerXp;
   final String selectedThemeId;
+  final bool whiteAtBottom;
+  final bool awaitingHandOff;
+  final MatchTimerPreset clockPreset;
+  final String? analyticsSinkUrl;
+  final DateTime? turnStartedAtUtc;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -35,6 +46,11 @@ class MatchPersistedState {
       'joinPort': joinPort,
       'careerXp': careerXp,
       'selectedThemeId': selectedThemeId,
+      'whiteAtBottom': whiteAtBottom,
+      'awaitingHandOff': awaitingHandOff,
+      'clockPreset': clockPreset.name,
+      'analyticsSinkUrl': analyticsSinkUrl,
+      'turnStartedAtUtc': turnStartedAtUtc?.toIso8601String(),
     };
   }
 
@@ -54,6 +70,13 @@ class MatchPersistedState {
       careerXp: (json['careerXp'] as num?)?.toInt() ?? 0,
       selectedThemeId:
           (json['selectedThemeId'] as String?) ?? 'chrome',
+      whiteAtBottom: json['whiteAtBottom'] as bool? ?? true,
+      awaitingHandOff: json['awaitingHandOff'] as bool? ?? false,
+      clockPreset: matchTimerPresetFromName(json['clockPreset'] as String?),
+      analyticsSinkUrl: json['analyticsSinkUrl'] as String?,
+      turnStartedAtUtc: (json['turnStartedAtUtc'] as String?) == null
+          ? null
+          : DateTime.parse(json['turnStartedAtUtc'] as String).toUtc(),
     );
   }
 }

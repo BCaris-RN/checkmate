@@ -5,6 +5,7 @@ import 'package:checkmate_by_caris/features/match/match_controller.dart';
 import 'package:checkmate_by_caris/features/match/match_models.dart';
 import 'package:checkmate_by_caris/features/match/match_storage.dart';
 import 'package:checkmate_by_caris/features/match/match_transport.dart';
+import 'package:checkmate_by_caris/features/match/match_time.dart';
 
 class FakeMatchStorage extends MatchStorage {
   MatchPersistedState? savedState;
@@ -176,7 +177,7 @@ void main() {
     );
     expect(controller.session.activeColor, ChessColor.black);
     expect(controller.turnSummary, 'Black to move');
-    expect(storage.saveCount, 1);
+    expect(storage.saveCount, 2);
   });
 
   test('career progress unlocks and persists themed chess sets', () async {
@@ -232,6 +233,9 @@ void main() {
 
     for (final move in opening) {
       await controller.playMove(move);
+      if (controller.awaitingHandOff) {
+        await controller.passDevice();
+      }
     }
 
     expect(controller.playerLevel, 2);
@@ -244,5 +248,67 @@ void main() {
     expect(storage.savedState?.careerXp, controller.careerXp);
     expect(storage.savedState?.selectedThemeId, ChessSetCatalog.crystal.id);
     expect(controller.levelSummary, 'Level 2 - 0/8 XP');
+  });
+
+  test('local hot-seat play pauses for pass and flips the board', () async {
+    final storage = FakeMatchStorage();
+    final transport = FakeMatchTransport(
+      launchResult: HostLaunchResult(
+        uri: Uri.parse('http://192.168.1.10:5050'),
+        port: 5050,
+        lanAddress: '192.168.1.10',
+      ),
+    );
+    final controller = MatchController(
+      storage: storage,
+      transport: transport,
+      now: () => DateTime.utc(2026, 1, 1, 12, 0, 0),
+    );
+
+    await controller.startLocalMatch();
+    await controller.tapSquare(4, 6);
+    await controller.tapSquare(4, 4);
+
+    expect(controller.awaitingHandOff, isTrue);
+    expect(controller.canLocalMove, isFalse);
+    expect(controller.passButtonLabel, 'Pass to Black');
+    expect(controller.whiteAtBottom, isTrue);
+    expect(controller.session.moves.last.elapsedMilliseconds, isNotNull);
+
+    await controller.passDevice();
+
+    expect(controller.awaitingHandOff, isFalse);
+    expect(controller.whiteAtBottom, isFalse);
+    expect(controller.turnSummary, 'Black to move');
+    expect(storage.savedState?.whiteAtBottom, isFalse);
+    expect(storage.savedState?.awaitingHandOff, isFalse);
+  });
+
+  test('timer presets and analytics rows persist with match play', () async {
+    final storage = FakeMatchStorage();
+    final transport = FakeMatchTransport(
+      launchResult: HostLaunchResult(
+        uri: Uri.parse('http://192.168.1.10:5050'),
+        port: 5050,
+        lanAddress: '192.168.1.10',
+      ),
+    );
+    final controller = MatchController(
+      storage: storage,
+      transport: transport,
+      now: () => DateTime.utc(2026, 1, 1, 12, 0, 0),
+    );
+
+    await controller.setClockPreset(MatchTimerPreset.fifteenMinutes);
+    await controller.startLocalMatch();
+    await controller.tapSquare(4, 6);
+    await controller.tapSquare(4, 4);
+
+    expect(storage.savedState?.clockPreset, MatchTimerPreset.fifteenMinutes);
+    expect(controller.analyticsRows.length, 1);
+    expect(controller.analyticsRows.first['Move #'], 1);
+    expect(controller.analyticsRows.first['Clock'], MatchTimerPreset.fifteenMinutes.label);
+    expect(controller.analyticsCsv, contains('Move #'));
+    expect(controller.analyticsCsv, contains('Move time'));
   });
 }

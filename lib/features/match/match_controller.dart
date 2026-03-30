@@ -2,25 +2,39 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'match_analytics.dart';
+import 'match_analytics_sink.dart';
 import 'chess_set_themes.dart';
 import 'match_models.dart';
 import 'match_storage.dart';
 import 'match_transport.dart';
+import 'match_time.dart';
 
 class MatchController extends ChangeNotifier {
   MatchController({
     MatchStorage? storage,
     LocalMatchTransport? transport,
+    MatchAnalyticsSink? analyticsSink,
+    DateTime Function()? now,
   })  : _storage = storage ?? MatchStorage(),
-        _transport = transport ?? LocalMatchTransport();
+        _transport = transport ?? LocalMatchTransport(),
+        _analyticsSink = analyticsSink ?? MatchAnalyticsSink(),
+        _now = now ?? DateTime.now;
 
   final MatchStorage _storage;
   final LocalMatchTransport _transport;
+  final MatchAnalyticsSink _analyticsSink;
+  final DateTime Function() _now;
 
   MatchSession _session = MatchSession.initial();
   MatchRole _role = MatchRole.local;
   int _careerXp = 0;
   String _selectedThemeId = ChessSetCatalog.chrome.id;
+  bool _whiteAtBottom = true;
+  bool _awaitingHandOff = false;
+  MatchTimerPreset _clockPreset = MatchTimerPreset.infinity;
+  String? _analyticsSinkUrl;
+  DateTime _turnStartedAtUtc = DateTime.now().toUtc();
   String? _hostAddress;
   int? _hostPort;
   Uri? _hostUri;
@@ -50,6 +64,10 @@ class MatchController extends ChangeNotifier {
   bool get isBrowserRoomHost => kIsWeb && _role == MatchRole.host && _hostUri != null;
   bool get isBrowserRoomGuest => kIsWeb && _role == MatchRole.guest && _joinUri != null;
   int get careerXp => _careerXp;
+  bool get whiteAtBottom => _whiteAtBottom;
+  bool get awaitingHandOff => _awaitingHandOff;
+  MatchTimerPreset get clockPreset => _clockPreset;
+  String? get analyticsSinkUrl => _analyticsSinkUrl;
   static const int _xpPerLevel = 8;
 
   int get playerLevel => 1 + (_careerXp ~/ _xpPerLevel);
@@ -133,6 +151,85 @@ class MatchController extends ChangeNotifier {
     };
   }
 
+  String get boardOrientationSummary =>
+      _whiteAtBottom ? 'White at bottom' : 'Black at bottom';
+
+  String get timeControlSummary => _clockPreset.longLabel;
+
+  String get turnClockSummary {
+    if (_session.isComplete) {
+      return _session.note;
+    }
+
+    if (_awaitingHandOff && isLocal) {
+      return 'Pass the device to ${_session.activeColor.label}.';
+    }
+
+    final elapsed = currentTurnElapsed;
+    if (elapsed == null) {
+      return 'No clock running.';
+    }
+
+    final remaining = remainingFor(_session.activeColor);
+    if (remaining == null) {
+      return '${_session.activeColor.label} move timing: ${formatClock(elapsed)}';
+    }
+
+    return '${_session.activeColor.label} ${formatClock(remaining)} left';
+  }
+
+  Duration? get currentTurnElapsed {
+    if (_session.isComplete || _awaitingHandOff) {
+      return null;
+    }
+    return _now().toUtc().difference(_turnStartedAtUtc);
+  }
+
+  Duration? remainingFor(ChessColor color) {
+    final presetDuration = _clockPreset.duration;
+    if (presetDuration == null) {
+      return null;
+    }
+
+    var spentMilliseconds = 0;
+    for (final move in _session.moves) {
+      if (move.color == color) {
+        spentMilliseconds += move.elapsedMilliseconds ?? 0;
+      }
+    }
+
+    if (!isLocal && _session.activeColor == color && !_session.isComplete) {
+      spentMilliseconds += _now().toUtc().difference(_turnStartedAtUtc).inMilliseconds;
+    } else if (isLocal &&
+        !_awaitingHandOff &&
+        _session.activeColor == color &&
+        !_session.isComplete) {
+      spentMilliseconds += _now().toUtc().difference(_turnStartedAtUtc).inMilliseconds;
+    }
+
+    final remaining = presetDuration.inMilliseconds - spentMilliseconds;
+    return Duration(
+      milliseconds: remaining.clamp(0, presetDuration.inMilliseconds).toInt(),
+    );
+  }
+
+  String get analyticsSheetLabel {
+    final cleaned = _analyticsSinkUrl?.trim();
+    if (cleaned == null || cleaned.isEmpty) {
+      return 'No analytics sheet linked.';
+    }
+    return cleaned;
+  }
+
+  String get analyticsCsv => analyticsCsvFromMoves(_session.moves);
+
+  List<Map<String, Object?>> get analyticsRows {
+    return [
+      for (var index = 0; index < _session.moves.length; index += 1)
+        analyticsRowForMove(_session.moves[index], moveNumber: index + 1),
+    ];
+  }
+
   String get turnSummary => _session.statusLabel;
 
   bool get canLocalMove {
@@ -141,13 +238,19 @@ class MatchController extends ChangeNotifier {
     }
 
     return switch (_role) {
-      MatchRole.local => true,
+      MatchRole.local => !_awaitingHandOff,
       MatchRole.host => _hostUri != null &&
           _session.activeColor == ChessColor.white,
       MatchRole.guest => _joinUri != null &&
           _session.activeColor == ChessColor.black,
     };
   }
+
+  bool get canPassDevice => isLocal && _awaitingHandOff && !_session.isComplete;
+
+  String get passButtonLabel => _awaitingHandOff
+      ? 'Pass to ${_session.activeColor.label}'
+      : 'Pass device';
 
   bool isThemeUnlocked(ChessSetTheme theme) {
     return playerLevel >= theme.unlockLevel;
@@ -164,6 +267,7 @@ class MatchController extends ChangeNotifier {
     final saved = await _storage.load();
     if (saved == null) {
       _notice = 'Ready for a fresh chess board.';
+      _turnStartedAtUtc = _now().toUtc();
       notifyListeners();
       return;
     }
@@ -172,6 +276,11 @@ class MatchController extends ChangeNotifier {
     _role = saved.role;
     _careerXp = saved.careerXp;
     _selectedThemeId = ChessSetCatalog.byId(saved.selectedThemeId).id;
+    _whiteAtBottom = saved.whiteAtBottom;
+    _awaitingHandOff = saved.awaitingHandOff;
+    _clockPreset = saved.clockPreset;
+    _analyticsSinkUrl = saved.analyticsSinkUrl;
+    _turnStartedAtUtc = saved.turnStartedAtUtc ?? _now().toUtc();
     final selectedTheme = ChessSetCatalog.byId(_selectedThemeId);
     if (!isThemeUnlocked(selectedTheme)) {
       _selectedThemeId = ChessSetCatalog.themeForLevel(playerLevel).id;
@@ -186,6 +295,9 @@ class MatchController extends ChangeNotifier {
     _joinUri = kIsWeb && _role == MatchRole.guest && _joinAddress != null
         ? _browserRoomUri(_joinAddress!)
         : null;
+    if (_role == MatchRole.guest) {
+      _whiteAtBottom = false;
+    }
     _selectedSquare = null;
     _notice = kIsWeb && _syncUri != null
         ? 'Saved browser room restored.'
@@ -203,7 +315,10 @@ class MatchController extends ChangeNotifier {
       _role = MatchRole.local;
       _session = MatchSession.initial();
       _selectedSquare = null;
-      _notice = 'Local chess board reset.';
+      _whiteAtBottom = true;
+      _awaitingHandOff = false;
+      _turnStartedAtUtc = _now().toUtc();
+      _notice = 'Local chess board reset. White starts at the bottom.';
       await _persist();
     });
   }
@@ -223,6 +338,9 @@ class MatchController extends ChangeNotifier {
       _hostUri = launch.uri;
       _joinUri = null;
       _selectedSquare = null;
+      _whiteAtBottom = true;
+      _awaitingHandOff = false;
+      _turnStartedAtUtc = _now().toUtc();
       _notice = kIsWeb
           ? 'Browser room ready. Share the invite link with another tab.'
           : launch.lanAddress == null
@@ -270,6 +388,9 @@ class MatchController extends ChangeNotifier {
       _joinUri = baseUri;
       _hostUri = null;
       _selectedSquare = null;
+      _whiteAtBottom = false;
+      _awaitingHandOff = false;
+      _turnStartedAtUtc = _now().toUtc();
       _notice = kIsWeb
           ? 'Connected to browser room.'
           : 'Connected to $cleanedAddress:$port.';
@@ -345,7 +466,7 @@ class MatchController extends ChangeNotifier {
     await _runBusy(() async {
       if (!canLocalMove) {
         throw const MatchRuleError(
-          'Wait for your turn or start a local match.',
+          'Pass the device before the next move.',
         );
       }
 
@@ -353,6 +474,9 @@ class MatchController extends ChangeNotifier {
       if (movingPiece == null) {
         throw MatchRuleError('No piece is on ${move.from.notation}.');
       }
+
+      final now = _now().toUtc();
+      final elapsedMilliseconds = _turnElapsedMilliseconds(now);
 
       final syncUri = _syncUri;
       if (syncUri != null &&
@@ -366,11 +490,27 @@ class MatchController extends ChangeNotifier {
           movingColor: movingPiece.color,
           resultingSession: fresh,
         );
+        _turnStartedAtUtc = now;
+        _awaitingHandOff = false;
         await _persist();
         return;
       }
 
-      await _applyMove(move, awardProgress: true);
+      await _applyMove(
+        move,
+        awardProgress: true,
+        elapsedMilliseconds: elapsedMilliseconds,
+        recordedAtUtc: now,
+        timerPreset: _clockPreset,
+      );
+      _awaitingHandOff = !_session.isComplete;
+      final moveSummary = '${movingPiece.color.label} moved in '
+          '${formatClock(Duration(milliseconds: elapsedMilliseconds))}.';
+      _notice = _session.isComplete
+          ? '$moveSummary ${_session.note}'
+          : '$moveSummary Pass the device to ${_session.activeColor.label}.';
+      notifyListeners();
+      await _persist();
     });
   }
 
@@ -384,6 +524,11 @@ class MatchController extends ChangeNotifier {
       }
       _notice = _session.note;
       _selectedSquare = null;
+      _awaitingHandOff = false;
+      if (_role == MatchRole.local) {
+        _whiteAtBottom = true;
+      }
+      _turnStartedAtUtc = _now().toUtc();
       _pollErrorShown = false;
       await _persist();
     });
@@ -393,6 +538,11 @@ class MatchController extends ChangeNotifier {
     _session = _session.reset();
     _notice = _session.note;
     _selectedSquare = null;
+    _awaitingHandOff = false;
+    if (_role == MatchRole.local) {
+      _whiteAtBottom = true;
+    }
+    _turnStartedAtUtc = _now().toUtc();
     await _persist();
     notifyListeners();
     return _session;
@@ -401,9 +551,17 @@ class MatchController extends ChangeNotifier {
   Future<MatchSession> _applyMove(
     ChessMove move, {
     bool awardProgress = true,
+    int? elapsedMilliseconds,
+    DateTime? recordedAtUtc,
+    MatchTimerPreset? timerPreset,
   }) async {
     final movingPiece = _session.pieceAt(move.from);
-    _session = _session.playMove(move);
+    _session = _session.playMove(
+      move,
+      elapsedMilliseconds: elapsedMilliseconds,
+      recordedAtUtc: recordedAtUtc,
+      timerPreset: timerPreset,
+    );
     _notice = _session.note;
     if (awardProgress && movingPiece != null) {
       _recordCareerProgress(
@@ -413,6 +571,9 @@ class MatchController extends ChangeNotifier {
     }
     _selectedSquare = null;
     await _persist();
+    if (_analyticsSinkUrl != null && _role == MatchRole.local) {
+      await _exportLatestAnalyticsRow();
+    }
     notifyListeners();
     return _session;
   }
@@ -433,6 +594,58 @@ class MatchController extends ChangeNotifier {
     _notice = '${theme.name} selected.';
     notifyListeners();
     await _persist();
+  }
+
+  Future<void> setClockPreset(MatchTimerPreset preset) async {
+    if (_clockPreset == preset) {
+      return;
+    }
+
+    await _runBusy(() async {
+      _clockPreset = preset;
+      _notice = 'Time control set to ${preset.longLabel}.';
+      await _persist();
+    });
+  }
+
+  Future<void> setAnalyticsSinkUrl(String value) async {
+    final cleaned = value.trim();
+    await _runBusy(() async {
+      _analyticsSinkUrl = cleaned.isEmpty ? null : cleaned;
+      if (_analyticsSinkUrl == null) {
+        _notice = 'Analytics sink cleared.';
+      } else {
+        final parsed = Uri.tryParse(_analyticsSinkUrl!);
+        if (parsed != null &&
+            parsed.host.contains('docs.google.com') &&
+            parsed.path.contains('/spreadsheets')) {
+          _notice =
+              'Analytics reference saved. Live writes need a Google Apps Script web app URL.';
+        } else if (parsed == null || !parsed.hasScheme || parsed.host.isEmpty) {
+          _notice =
+              'Analytics reference saved as text. Live writes need a full web app URL.';
+        } else {
+          _notice = 'Analytics sink saved.';
+        }
+      }
+      await _persist();
+    });
+  }
+
+  Future<void> passDevice() async {
+    await _runBusy(() async {
+      if (!canPassDevice) {
+        _notice = 'Make a move before passing the device.';
+        notifyListeners();
+        return;
+      }
+
+      _whiteAtBottom = !_whiteAtBottom;
+      _awaitingHandOff = false;
+      _turnStartedAtUtc = _now().toUtc();
+      _notice = '${_session.activeColor.label} can move now.';
+      await _persist();
+    });
   }
 
   ChessMove? _findLegalMove(ChessSquare from, ChessSquare to) {
@@ -488,6 +701,11 @@ class MatchController extends ChangeNotifier {
         joinPort: _joinPort,
         careerXp: _careerXp,
         selectedThemeId: _selectedThemeId,
+        whiteAtBottom: _whiteAtBottom,
+        awaitingHandOff: _awaitingHandOff,
+        clockPreset: _clockPreset,
+        analyticsSinkUrl: _analyticsSinkUrl,
+        turnStartedAtUtc: _turnStartedAtUtc,
       ),
     );
   }
@@ -522,6 +740,40 @@ class MatchController extends ChangeNotifier {
       _notice = unlockedThemes.isEmpty
           ? 'Level $updatedLevel reached.'
           : 'Level $updatedLevel unlocked ${unlockedThemes.join(', ')}.';
+    }
+  }
+
+  int _turnElapsedMilliseconds(DateTime nowUtc) {
+    if (_session.isComplete || _awaitingHandOff) {
+      return 0;
+    }
+    return nowUtc.difference(_turnStartedAtUtc).inMilliseconds;
+  }
+
+  Future<void> _exportLatestAnalyticsRow() async {
+    final endpointText = _analyticsSinkUrl?.trim();
+    if (endpointText == null || endpointText.isEmpty || _session.moves.isEmpty) {
+      return;
+    }
+
+    final endpoint = Uri.tryParse(endpointText);
+    if (endpoint == null || !endpoint.hasScheme || endpoint.host.isEmpty) {
+      return;
+    }
+
+    if (endpoint.host.contains('docs.google.com') &&
+        endpoint.path.contains('/spreadsheets')) {
+      return;
+    }
+
+    final moveNumber = _session.moves.length;
+    final row = analyticsRowForMove(_session.moves.last, moveNumber: moveNumber);
+    try {
+      await _analyticsSink.appendRow(endpoint, row);
+      _pollErrorShown = false;
+    } catch (error) {
+      _notice = 'Analytics export paused: ${_friendlyError(error)}';
+      notifyListeners();
     }
   }
 

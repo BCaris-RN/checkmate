@@ -14,9 +14,11 @@ Checkmate by Caris is a governed Flutter chess platform built to deliver real ch
 - Hosts a match over the local network.
 - Joins a host, synchronizes state, and submits moves remotely.
 - Lets the browser build host and join matches between tabs in the same browser profile.
+- Supports one-device hot-seat play with a pass-device button and per-move timer tracking.
 - Renders a real chess board with white-view coordinates and visible pieces.
 - Unlocks themed chess sets as you level up.
 - Persists match state with `shared_preferences`.
+- Stores an optional analytics sink link and can stream move rows to a Google Sheets-compatible live endpoint.
 - Applies design tokens and guardrails through the repo scripts.
 
 ## Play and Download on GitHub
@@ -27,6 +29,7 @@ Checkmate by Caris is a governed Flutter chess platform built to deliver real ch
 - Web builds use the `/checkmate/` base path so the app works correctly when served from the repository subpath.
 - In the browser, host/join play works between tabs in the same browser profile by sharing the invite link or room code.
 - Browser progress saves in the current browser profile only; separate devices do not share unlocks.
+- For live analytics writes, the app accepts a Google Sheets-compatible Apps Script web app URL. Plain Sheets links are saved as references.
 
 ## Run
 

@@ -1,3 +1,5 @@
+import 'match_time.dart';
+
 enum MatchRole { local, host, guest }
 
 enum MatchPhase { playing, whiteWon, blackWon, draw }
@@ -218,6 +220,9 @@ class ChessMoveRecord {
     this.promotion,
     required this.isCastling,
     required this.isEnPassant,
+    this.elapsedMilliseconds,
+    this.recordedAtUtc,
+    this.timerPreset,
   });
 
   final ChessColor color;
@@ -228,6 +233,9 @@ class ChessMoveRecord {
   final ChessPieceType? promotion;
   final bool isCastling;
   final bool isEnPassant;
+  final int? elapsedMilliseconds;
+  final DateTime? recordedAtUtc;
+  final MatchTimerPreset? timerPreset;
 
   String get summary {
     final buffer = StringBuffer(
@@ -258,12 +266,16 @@ class ChessMoveRecord {
       'promotion': promotion?.name,
       'isCastling': isCastling,
       'isEnPassant': isEnPassant,
+      'elapsedMilliseconds': elapsedMilliseconds,
+      'recordedAtUtc': recordedAtUtc?.toIso8601String(),
+      'timerPreset': timerPreset?.name,
     };
   }
 
   factory ChessMoveRecord.fromJson(Map<String, dynamic> json) {
     final rawCaptured = json['captured'];
     final rawPromotion = json['promotion'];
+    final rawTimerPreset = json['timerPreset'];
     return ChessMoveRecord(
       color: ChessColor.values.byName(json['color'] as String),
       piece: ChessPieceType.values.byName(json['piece'] as String),
@@ -277,6 +289,13 @@ class ChessMoveRecord {
           : null,
       isCastling: json['isCastling'] as bool? ?? false,
       isEnPassant: json['isEnPassant'] as bool? ?? false,
+      elapsedMilliseconds: (json['elapsedMilliseconds'] as num?)?.toInt(),
+      recordedAtUtc: (json['recordedAtUtc'] as String?) == null
+          ? null
+          : DateTime.parse(json['recordedAtUtc'] as String).toUtc(),
+      timerPreset: rawTimerPreset is String
+          ? MatchTimerPreset.values.byName(rawTimerPreset)
+          : null,
     );
   }
 }
@@ -437,7 +456,12 @@ class MatchSession {
 
   MatchSession reset() => MatchSession.initial();
 
-  MatchSession playMove(ChessMove move) {
+  MatchSession playMove(
+    ChessMove move, {
+    int? elapsedMilliseconds,
+    DateTime? recordedAtUtc,
+    MatchTimerPreset? timerPreset,
+  }) {
     if (isComplete) {
       throw const MatchRuleError('The game is already complete.');
     }
@@ -456,7 +480,13 @@ class MatchSession {
       throw MatchRuleError('That move is not legal for ${move.from.notation}.');
     }
 
-    return _applyMoveUnchecked(resolvedMove, resolveOutcome: true);
+    return _applyMoveUnchecked(
+      resolvedMove,
+      resolveOutcome: true,
+      elapsedMilliseconds: elapsedMilliseconds,
+      recordedAtUtc: recordedAtUtc,
+      timerPreset: timerPreset,
+    );
   }
 
   bool isInCheck(ChessColor color) {
@@ -643,6 +673,9 @@ class MatchSession {
   MatchSession _applyMoveUnchecked(
     ChessMove move, {
     required bool resolveOutcome,
+    int? elapsedMilliseconds,
+    DateTime? recordedAtUtc,
+    MatchTimerPreset? timerPreset,
   }) {
     final movingPiece = pieceAt(move.from);
     if (movingPiece == null) {
@@ -726,6 +759,9 @@ class MatchSession {
       promotion: promotionType,
       isCastling: isCastling,
       isEnPassant: isEnPassant,
+      elapsedMilliseconds: elapsedMilliseconds,
+      recordedAtUtc: recordedAtUtc?.toUtc(),
+      timerPreset: timerPreset,
     );
     nextMoves.add(record);
 
