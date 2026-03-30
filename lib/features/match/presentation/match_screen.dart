@@ -350,7 +350,6 @@ class _BoardCard extends StatelessWidget {
               theme: theme,
             ),
           ),
-          const SizedBox(height: AppSpacing.grid4),
           Row(
             children: [
               Expanded(
@@ -363,14 +362,6 @@ class _BoardCard extends StatelessWidget {
                       ),
                 ),
               ),
-              if (controller.isLocal) ...[
-                const SizedBox(width: AppSpacing.grid2),
-                TextButton.icon(
-                  onPressed: controller.canPassDevice ? controller.passDevice : null,
-                  icon: const Icon(Icons.switch_camera_outlined),
-                  label: Text(controller.passButtonLabel),
-                ),
-              ],
               const SizedBox(width: AppSpacing.grid4),
               TextButton(
                 onPressed: controller.busy ? null : controller.resetMatch,
@@ -378,6 +369,18 @@ class _BoardCard extends StatelessWidget {
               ),
             ],
           ),
+          if (controller.isLocal) ...[
+            const SizedBox(height: AppSpacing.grid2),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed:
+                    controller.canPassDevice ? controller.passDevice : null,
+                icon: const Icon(Icons.switch_camera_outlined),
+                label: Text(controller.passButtonLabel),
+              ),
+            ),
+          ],
         ],
       ),
     );

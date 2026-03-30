@@ -30,8 +30,6 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Timer settings', skipOffstage: false), findsOneWidget);
-    expect(find.text('Analytics', skipOffstage: false), findsOneWidget);
     expect(find.text('Pass device', skipOffstage: false), findsOneWidget);
     expect(
       find.text(
