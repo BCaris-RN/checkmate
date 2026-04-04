@@ -30,7 +30,7 @@ CORE_DIRS = (
     "backend/tests",
 )
 
-OPTIONAL_GITHUB_WORKFLOW = ".github/workflows/caris-hard-gates.yml"
+OPTIONAL_GITHUB_WORKFLOW = ".github/workflows/github-delivery.yml"
 
 OPTIONAL_LEGAL_FILES = frozenset(
     {
