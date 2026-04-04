@@ -13,9 +13,9 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = Path("templates/runtime/flutter/caris_flutter_export_manifest.json")
 REQUIRED_EXCLUDED_DOCS = {
-    "docs/architecture/002b_NEXTJS_REACT_ARCH_DOCS.md",
-    "docs/architecture/002c_UNIVERSAL_ARCH_BLUEPRINT.md",
-    "docs/architecture/004b_REACT_WHITE_LIST_CORE_STACK.md",
+    ".caris_stack/architecture/002b_NEXTJS_REACT_ARCH_DOCS.md",
+    ".caris_stack/architecture/002c_UNIVERSAL_ARCH_BLUEPRINT.md",
+    ".caris_stack/architecture/004b_REACT_WHITE_LIST_CORE_STACK.md",
 }
 REQUIRED_SCHEMA_EXPORTS = {
     "schemas/evidence_bundle.schema.json",

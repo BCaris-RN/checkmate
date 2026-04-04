@@ -15,15 +15,15 @@ except ImportError:  # pragma: no cover - module execution fallback
 
 REQUIRED_ROOT_FILES = (
     "README.md",
-    "how_to.txt",
-    "LICENSE.md",
-    "backend/__init__.py",
-    "lefthook.yml",
+    "pubspec.yaml",
+    "pubspec.lock",
+    "analysis_options.yaml",
     ".gitignore",
+    ".github/workflows/github-delivery.yml",
 )
 
 CORE_DIRS = (
-    "docs/architecture",
+    ".caris_stack/architecture",
     "scripts",
     "templates/guardrails",
     "backend/modules",
@@ -34,8 +34,8 @@ OPTIONAL_GITHUB_WORKFLOW = ".github/workflows/caris-hard-gates.yml"
 
 OPTIONAL_LEGAL_FILES = frozenset(
     {
-        "docs/architecture/006_LEGAL_DOCUMENTATION_BUILDER.md",
-        "docs/architecture/007_REVISIONS_AUTOMATION.md",
+        ".caris_stack/architecture/006_LEGAL_DOCUMENTATION_BUILDER.md",
+        ".caris_stack/architecture/007_REVISIONS_AUTOMATION.md",
         "scripts/build_006.py",
     }
 )

@@ -182,7 +182,7 @@ def check_dependencies(
         raise DependencyGateViolation(
             "[DEPENDENCY_VIOLATION] "
             f"Unvetted dependencies found in {pubspec_path.name}: {joined}. "
-            "Document approvals in docs/architecture/004_EXTERNAL_LIBS_AND_RESOURCES.md before use."
+            "Document approvals in .caris_stack/architecture/004_EXTERNAL_LIBS_AND_RESOURCES.md before use."
         )
 
 

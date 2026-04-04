@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "authority_document": "docs/architecture/004_EXTERNAL_LIBS_AND_RESOURCES.md",
+  "authority_document": ".caris_stack/architecture/004_EXTERNAL_LIBS_AND_RESOURCES.md",
   "target_runtime": "phoenix",
   "active_profile": "flutter",
   "notes": [
