@@ -35,6 +35,7 @@ HIGH_RISK_EXACT_PATHS = GOVERNANCE_DOC_BASENAMES | frozenset(
 HIGH_RISK_PREFIXES = (
     "scripts/enforce_exclusion_zones.",
     "templates/guardrails/",
+    "schemas/",
 )
 
 STACK_VERSION_TAG = "Caris_Stack_v3_Governed"
@@ -59,7 +60,7 @@ INVENTORSHIP ASSERTION: Architectural selection and arrangement directed solely 
 
 LOG CONTENT REQUIREMENTS:
 - Hard Gate Audit: {complexity_routing_summary()}
-- High-Risk Governance Surface: Any numbered document under docs/architecture, exclusion/guardrail configs, and schema/migration paths force Stop-and-Think.
+- High-Risk Governance Surface: Any numbered governance document, exclusion/guardrail configs, and schema/migration paths force Stop-and-Think.
 - Design Token Sync: Confirm the typography scale ratio {TOKEN_SCALE_RATIO} and baseline grid {TOKEN_BASELINE_GRID_PX}px are locked.
 - Resilience Check: Verify Active Recovery (DraftStore) and Circuit Breaker policies are compiled.
 - DraftStore Compliance Gate: VERIFIED across {scanned_targets} ViewModel/Controller file(s).
