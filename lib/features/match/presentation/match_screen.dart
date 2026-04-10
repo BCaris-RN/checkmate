@@ -13,7 +13,6 @@ import '../chess_set_themes.dart';
 import '../match_controller.dart';
 import '../match_models.dart';
 import '../match_time.dart';
-import 'launch_screen.dart';
 
 class MatchScreen extends StatefulWidget {
   const MatchScreen({super.key});
@@ -67,38 +66,43 @@ class _MatchScreenState extends State<MatchScreen> {
               const _AmbientBackdrop(),
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.grid4),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.grid2,
+                    AppSpacing.grid2,
+                    AppSpacing.grid2,
+                    AppSpacing.grid2,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _TopBar(controller: controller),
-                      const SizedBox(height: AppSpacing.grid4),
-                      if (controller.notice != null) ...[
-                        _NoticeBanner(message: controller.notice!),
-                        const SizedBox(height: AppSpacing.grid4),
-                      ],
                       _BoardCard(controller: controller),
-                      const SizedBox(height: AppSpacing.grid4),
+                      const SizedBox(height: AppSpacing.grid2),
                       Expanded(
-                        child: wide
-                            ? SingleChildScrollView(
-                                child: _ControlColumn(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (controller.notice != null) ...[
+                                _NoticeBanner(message: controller.notice!),
+                                const SizedBox(height: AppSpacing.grid2),
+                              ],
+                              if (wide)
+                                _ControlColumn(
+                                  controller: controller,
+                                  hostController: _hostController,
+                                  portController: _portController,
+                                  analyticsController: _analyticsController,
+                                )
+                              else
+                                _ControlsDrawer(
                                   controller: controller,
                                   hostController: _hostController,
                                   portController: _portController,
                                   analyticsController: _analyticsController,
                                 ),
-                              )
-                            : ListView(
-                                children: [
-                                  _ControlsDrawer(
-                                    controller: controller,
-                                    hostController: _hostController,
-                                    portController: _portController,
-                                    analyticsController: _analyticsController,
-                                  ),
-                                ],
-                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -108,84 +112,6 @@ class _MatchScreenState extends State<MatchScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-class _TopBar extends StatelessWidget {
-  const _TopBar({required this.controller});
-
-  final MatchController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= 760;
-
-    final titleBlock = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const BrandStamp(compact: true),
-        const SizedBox(height: AppSpacing.grid2),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.grid2,
-            vertical: AppSpacing.grid1,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.accent.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: AppColors.accent.withValues(alpha: 0.16)),
-          ),
-          child: Text(
-            'Hot-seat first, network second',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.accent,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.grid2),
-        Text(
-          'Checkmate by Caris',
-          style: Theme.of(context).textTheme.displayMedium,
-        ),
-        const SizedBox(height: AppSpacing.grid1),
-        Text(
-          controller.whiteAtBottom
-              ? 'White view: files a-h run left to right and ranks 1-8 run bottom to top.'
-              : 'Black view: files h-a run left to right and ranks 8-1 run bottom to top.',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: AppSpacing.grid1),
-        Text(
-          kIsWeb
-              ? 'Web note: progress saves in this browser profile only. Two people can play here from two tabs on the same computer or one phone in turns.'
-              : 'Single-device note: progress saves on this device. Use Host/Join for Wi-Fi or hotspot play.',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
-        ),
-      ],
-    );
-
-    if (!wide) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          titleBlock,
-          const SizedBox(height: AppSpacing.grid2),
-          _StatusPill(label: controller.connectionSummary),
-        ],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(child: titleBlock),
-        const SizedBox(width: AppSpacing.grid4),
-        _StatusPill(label: controller.connectionSummary),
-      ],
     );
   }
 }
@@ -219,38 +145,6 @@ class _NoticeBanner extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 44),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.grid4,
-        vertical: AppSpacing.grid2,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.18)),
-      ),
-      child: Center(
-        child: Text(
-          label,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.labelLarge?.copyWith(color: AppColors.accent),
-        ),
-      ),
-    );
-  }
-}
-
 class _BoardCard extends StatelessWidget {
   const _BoardCard({required this.controller});
 
@@ -258,7 +152,6 @@ class _BoardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final session = controller.session;
     final theme = controller.activeTheme;
     final media = MediaQuery.sizeOf(context);
     final boardExtent = math.min(
@@ -270,120 +163,114 @@ class _BoardCard extends StatelessWidget {
     return Container(
       padding: EdgeInsets.zero,
       decoration: BoxDecoration(color: Colors.transparent),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: boardExtent,
-                  maxHeight: boardExtent,
-                ),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onDoubleTap: controller.busy
-                      ? null
-                      : controller.toggleBoardInteractionLock,
-                  child: Stack(
-                    children: [
-                      IgnorePointer(
-                        ignoring: isBoardLocked,
-                        child: _BoardGrid(controller: controller, theme: theme),
-                      ),
-                      Positioned.fill(
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 180),
-                          opacity: isBoardLocked ? 1 : 0,
-                          child: IgnorePointer(
+      child: SizedBox(
+        width: double.infinity,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: boardExtent,
+              maxHeight: boardExtent,
+            ),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onDoubleTap: controller.busy
+                  ? null
+                  : controller.toggleBoardInteractionLock,
+              child: Stack(
+                children: [
+                  IgnorePointer(
+                    ignoring: isBoardLocked,
+                    child: _BoardGrid(controller: controller, theme: theme),
+                  ),
+                  Positioned(
+                    left: AppSpacing.grid2,
+                    top: AppSpacing.grid2,
+                    child: _BoardCornerLabel(text: controller.turnSummary),
+                  ),
+                  Positioned(
+                    right: AppSpacing.grid2,
+                    top: AppSpacing.grid2,
+                    child: _BoardCornerLabel(
+                      text: controller.boardOrientationSummary,
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 180),
+                      opacity: isBoardLocked ? 1 : 0,
+                      child: IgnorePointer(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.textPrimary.withValues(
+                              alpha: 0.04,
+                            ),
+                            borderRadius: BorderRadius.circular(
+                              AppRadii.large - 2,
+                            ),
+                          ),
+                          child: Center(
                             child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.grid4,
+                                vertical: AppSpacing.grid2,
+                              ),
                               decoration: BoxDecoration(
-                                color: AppColors.textPrimary.withValues(
-                                  alpha: 0.04,
+                                color: AppColors.surface.withValues(
+                                  alpha: 0.92,
                                 ),
-                                borderRadius: BorderRadius.circular(
-                                  AppRadii.large - 2,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: AppColors.textPrimary.withValues(
+                                    alpha: 0.10,
+                                  ),
                                 ),
                               ),
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.grid4,
-                                    vertical: AppSpacing.grid2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surface.withValues(
-                                      alpha: 0.92,
-                                    ),
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(
-                                      color: AppColors.textPrimary.withValues(
-                                        alpha: 0.10,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Double tap to unlock board',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(
-                                          color: AppColors.textPrimary,
-                                        ),
-                                  ),
-                                ),
+                              child: Text(
+                                'Double tap to unlock board',
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(color: AppColors.textPrimary),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  controller.isLocal && controller.awaitingHandOff
-                      ? 'Pass the phone to ${session.activeColor.label}. ${controller.turnClockSummary}'
-                      : session.note,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.grid4),
-              TextButton(
-                onPressed: controller.busy ? null : controller.resetMatch,
-                child: const Text('Reset board'),
-              ),
-            ],
-          ),
-          if (controller.isLocal) ...[
-            const SizedBox(height: AppSpacing.grid2),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: controller.canPassDevice
-                    ? controller.passDevice
-                    : null,
-                icon: const Icon(Icons.switch_camera_outlined),
-                label: Text(controller.passButtonLabel),
-              ),
-            ),
-          ],
-          Text(
-            '${controller.turnSummary} • ${controller.connectionSummary} • ${controller.boardOrientationSummary}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
-          ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BoardCornerLabel extends StatelessWidget {
+  const _BoardCornerLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.grid2,
+        vertical: AppSpacing.grid1,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.90),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
