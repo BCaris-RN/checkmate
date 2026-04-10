@@ -65,47 +65,63 @@ class _MatchScreenState extends State<MatchScreen> {
             children: [
               const _AmbientBackdrop(),
               SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.grid2,
-                    AppSpacing.grid2,
-                    AppSpacing.grid2,
-                    AppSpacing.grid2,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _BoardCard(controller: controller),
-                      const SizedBox(height: AppSpacing.grid2),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (controller.notice != null) ...[
-                                _NoticeBanner(message: controller.notice!),
-                                const SizedBox(height: AppSpacing.grid2),
-                              ],
-                              if (wide)
-                                _ControlColumn(
-                                  controller: controller,
-                                  hostController: _hostController,
-                                  portController: _portController,
-                                  analyticsController: _analyticsController,
-                                )
-                              else
-                                _ControlsDrawer(
-                                  controller: controller,
-                                  hostController: _hostController,
-                                  portController: _portController,
-                                  analyticsController: _analyticsController,
-                                ),
-                            ],
-                          ),
-                        ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final boardSlotHeight = wide
+                        ? constraints.maxHeight * 0.78
+                        : constraints.maxHeight * 0.54;
+
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.grid2,
+                        AppSpacing.grid2,
+                        AppSpacing.grid2,
+                        AppSpacing.grid2,
                       ),
-                    ],
-                  ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(
+                            height: boardSlotHeight,
+                            child: _BoardCard(
+                              controller: controller,
+                              maxBoardExtent: boardSlotHeight,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.grid2),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _BoardMetaBar(controller: controller),
+                                  const SizedBox(height: AppSpacing.grid2),
+                                  if (controller.notice != null) ...[
+                                    _NoticeBanner(message: controller.notice!),
+                                    const SizedBox(height: AppSpacing.grid2),
+                                  ],
+                                  if (wide)
+                                    _ControlColumn(
+                                      controller: controller,
+                                      hostController: _hostController,
+                                      portController: _portController,
+                                      analyticsController: _analyticsController,
+                                    )
+                                  else
+                                    _ControlsDrawer(
+                                      controller: controller,
+                                      hostController: _hostController,
+                                      portController: _portController,
+                                      analyticsController: _analyticsController,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -146,9 +162,10 @@ class _NoticeBanner extends StatelessWidget {
 }
 
 class _BoardCard extends StatelessWidget {
-  const _BoardCard({required this.controller});
+  const _BoardCard({required this.controller, required this.maxBoardExtent});
 
   final MatchController controller;
+  final double maxBoardExtent;
 
   @override
   Widget build(BuildContext context) {
@@ -156,88 +173,66 @@ class _BoardCard extends StatelessWidget {
     final media = MediaQuery.sizeOf(context);
     final boardExtent = math.min(
       media.width - (AppSpacing.grid2 * 2),
-      media.height * 0.92,
+      maxBoardExtent,
     );
     final isBoardLocked = controller.boardInteractionLocked;
 
-    return Container(
-      padding: EdgeInsets.zero,
-      decoration: BoxDecoration(color: Colors.transparent),
-      child: SizedBox(
-        width: double.infinity,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: boardExtent,
-              maxHeight: boardExtent,
-            ),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onDoubleTap: controller.busy
-                  ? null
-                  : controller.toggleBoardInteractionLock,
-              child: Stack(
-                children: [
-                  IgnorePointer(
-                    ignoring: isBoardLocked,
-                    child: _BoardGrid(controller: controller, theme: theme),
-                  ),
-                  Positioned(
-                    left: AppSpacing.grid2,
-                    top: AppSpacing.grid2,
-                    child: _BoardCornerLabel(text: controller.turnSummary),
-                  ),
-                  Positioned(
-                    right: AppSpacing.grid2,
-                    top: AppSpacing.grid2,
-                    child: _BoardCornerLabel(
-                      text: controller.boardOrientationSummary,
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 180),
-                      opacity: isBoardLocked ? 1 : 0,
-                      child: IgnorePointer(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.textPrimary.withValues(
-                              alpha: 0.04,
-                            ),
-                            borderRadius: BorderRadius.circular(
-                              AppRadii.large - 2,
-                            ),
+    return SizedBox(
+      width: double.infinity,
+      child: Center(
+        child: SizedBox(
+          width: boardExtent,
+          height: boardExtent,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onDoubleTap: controller.busy
+                ? null
+                : controller.toggleBoardInteractionLock,
+            child: Stack(
+              children: [
+                IgnorePointer(
+                  ignoring: isBoardLocked,
+                  child: _BoardGrid(controller: controller, theme: theme),
+                ),
+                Positioned.fill(
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 180),
+                    opacity: isBoardLocked ? 1 : 0,
+                    child: IgnorePointer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.textPrimary.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(
+                            AppRadii.large - 2,
                           ),
-                          child: Center(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.grid4,
-                                vertical: AppSpacing.grid2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.surface.withValues(
-                                  alpha: 0.92,
-                                ),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: AppColors.textPrimary.withValues(
-                                    alpha: 0.10,
-                                  ),
+                        ),
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.grid4,
+                              vertical: AppSpacing.grid2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface.withValues(alpha: 0.92),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: AppColors.textPrimary.withValues(
+                                  alpha: 0.10,
                                 ),
                               ),
-                              child: Text(
-                                'Double tap to unlock board',
-                                style: Theme.of(context).textTheme.labelLarge
-                                    ?.copyWith(color: AppColors.textPrimary),
-                              ),
+                            ),
+                            child: Text(
+                              'Double tap to unlock board',
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(color: AppColors.textPrimary),
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -246,8 +241,27 @@ class _BoardCard extends StatelessWidget {
   }
 }
 
-class _BoardCornerLabel extends StatelessWidget {
-  const _BoardCornerLabel({required this.text});
+class _BoardMetaBar extends StatelessWidget {
+  const _BoardMetaBar({required this.controller});
+
+  final MatchController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppSpacing.grid2,
+      runSpacing: AppSpacing.grid2,
+      children: [
+        _MetaPill(text: controller.turnSummary),
+        _MetaPill(text: controller.boardOrientationSummary),
+        _MetaPill(text: controller.connectionSummary),
+      ],
+    );
+  }
+}
+
+class _MetaPill extends StatelessWidget {
+  const _MetaPill({required this.text});
 
   final String text;
 
@@ -259,7 +273,7 @@ class _BoardCornerLabel extends StatelessWidget {
         vertical: AppSpacing.grid1,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.90),
+        color: AppColors.surface.withValues(alpha: 0.86),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: AppColors.textPrimary.withValues(alpha: 0.08),
@@ -322,7 +336,7 @@ class _BoardGrid extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       SizedBox(
-                        width: 16,
+                        width: 10,
                         child: Column(
                           children: List.generate(MatchSession.rows, (
                             displayRow,
@@ -335,7 +349,7 @@ class _BoardGrid extends StatelessWidget {
                                 alignment: Alignment.centerRight,
                                 child: Text(
                                   '${MatchSession.rows - boardRow}',
-                                  style: Theme.of(context).textTheme.labelLarge
+                                  style: Theme.of(context).textTheme.labelSmall
                                       ?.copyWith(color: AppColors.textMuted),
                                 ),
                               ),
@@ -343,7 +357,7 @@ class _BoardGrid extends StatelessWidget {
                           }),
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.grid1),
+                      const SizedBox(width: 2),
                       Expanded(
                         child: Column(
                           children: List.generate(MatchSession.rows, (
@@ -425,7 +439,7 @@ class _BoardGrid extends StatelessWidget {
                         child: Center(
                           child: Text(
                             String.fromCharCode(97 + boardFile),
-                            style: Theme.of(context).textTheme.labelLarge
+                            style: Theme.of(context).textTheme.labelSmall
                                 ?.copyWith(color: AppColors.textMuted),
                           ),
                         ),
