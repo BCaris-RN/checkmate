@@ -70,6 +70,7 @@ class _MatchScreenState extends State<MatchScreen> {
                     final boardSlotHeight = wide
                         ? constraints.maxHeight * 0.78
                         : constraints.maxHeight * 0.54;
+                    final scrollTopInset = boardSlotHeight + AppSpacing.grid2;
 
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(
@@ -78,18 +79,20 @@ class _MatchScreenState extends State<MatchScreen> {
                         AppSpacing.grid2,
                         AppSpacing.grid2,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                      child: Stack(
                         children: [
-                          SizedBox(
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            top: 0,
                             height: boardSlotHeight,
                             child: _BoardCard(
                               controller: controller,
                               maxBoardExtent: boardSlotHeight,
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.grid2),
-                          Expanded(
+                          Positioned.fill(
+                            top: scrollTopInset,
                             child: SingleChildScrollView(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
