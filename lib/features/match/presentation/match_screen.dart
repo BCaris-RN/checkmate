@@ -114,6 +114,8 @@ class _MatchScreenState extends State<MatchScreen> {
                                   _NoticeBanner(message: controller.notice!),
                                   const SizedBox(height: AppSpacing.grid2),
                                 ],
+                                _PassReminderTile(controller: controller),
+                                const SizedBox(height: AppSpacing.grid2),
                                 if (wide)
                                   _ControlColumn(
                                     controller: controller,
@@ -200,6 +202,58 @@ class _BoardCard extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _PassReminderTile extends StatelessWidget {
+  const _PassReminderTile({required this.controller});
+
+  final MatchController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.grid4,
+        vertical: AppSpacing.grid2,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.textPrimary.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(AppRadii.medium),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pass reminder',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: AppSpacing.grid1),
+                Text(
+                  controller.passReminderEnabled
+                      ? 'On when you want a pass prompt after local moves.'
+                      : 'Off when you want uninterrupted play.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: controller.passReminderEnabled,
+            onChanged: controller.busy
+                ? null
+                : (value) =>
+                      unawaited(controller.setPassReminderEnabled(value)),
+          ),
+        ],
       ),
     );
   }
@@ -550,10 +604,10 @@ class _PieceBadge extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = constraints.biggest.shortestSide * 0.72;
+        final size = constraints.biggest.shortestSide * 0.84;
         final shadowColor = selected
-            ? theme.accent.withValues(alpha: 0.30)
-            : material.shadow.withValues(alpha: 0.58);
+            ? theme.accent.withValues(alpha: 0.22)
+            : material.shadow.withValues(alpha: 0.42);
 
         return AnimatedScale(
           duration: const Duration(milliseconds: 140),
@@ -564,71 +618,48 @@ class _PieceBadge extends StatelessWidget {
             height: size,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: material.surface,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [material.surface.first, material.surface.last],
                 ),
                 border: Border.all(
                   color: selected
                       ? theme.accent.withValues(alpha: 0.58)
-                      : material.border,
-                  width: selected ? 1.6 : 1.0,
+                      : material.border.withValues(alpha: 0.78),
+                  width: selected ? 1.2 : 0.9,
                 ),
                 boxShadow: [
                   BoxShadow(
                     color: shadowColor,
-                    blurRadius: selected ? 20 : 16,
-                    offset: const Offset(0, 8),
+                    blurRadius: selected ? 10 : 8,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
-              child: ClipOval(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: _SurfacePatternPainter(
-                          pattern: material.pattern,
-                          color: material.patternColor,
-                        ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _SurfacePatternPainter(
+                        pattern: material.pattern,
+                        color: material.patternColor.withValues(alpha: 0.45),
                       ),
                     ),
-                    Positioned(
-                      top: size * 0.08,
-                      child: Container(
-                        width: size * 0.40,
-                        height: size * 0.16,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(999),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: material.highlight,
-                          ),
-                        ),
-                      ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.grid1,
                     ),
-                    Positioned(
-                      bottom: size * 0.10,
-                      child: Container(
-                        width: size * 0.58,
-                        height: size * 0.14,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(999),
-                          color: material.border.withValues(alpha: 0.20),
-                        ),
-                      ),
-                    ),
-                    Text(
+                    child: Text(
                       piece.symbol,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: size * 0.48,
+                        fontSize: size * 0.62,
                         height: 1,
                         color: material.symbolColor,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         fontFamilyFallback: const <String>[
                           'Segoe UI Symbol',
                           'Noto Sans Symbols 2',
@@ -636,15 +667,15 @@ class _PieceBadge extends StatelessWidget {
                         ],
                         shadows: [
                           Shadow(
-                            color: material.shadow.withValues(alpha: 0.66),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+                            color: material.shadow.withValues(alpha: 0.40),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

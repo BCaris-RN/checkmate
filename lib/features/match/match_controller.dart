@@ -32,6 +32,7 @@ class MatchController extends ChangeNotifier {
   String _selectedThemeId = ChessSetCatalog.chrome.id;
   bool _whiteAtBottom = true;
   bool _awaitingHandOff = false;
+  bool _passReminderEnabled = true;
   MatchTimerPreset _clockPreset = MatchTimerPreset.infinity;
   String? _analyticsSinkUrl;
   DateTime _turnStartedAtUtc = DateTime.now().toUtc();
@@ -69,6 +70,7 @@ class MatchController extends ChangeNotifier {
   int get careerXp => _careerXp;
   bool get whiteAtBottom => _whiteAtBottom;
   bool get awaitingHandOff => _awaitingHandOff;
+  bool get passReminderEnabled => _passReminderEnabled;
   MatchTimerPreset get clockPreset => _clockPreset;
   String? get analyticsSinkUrl => _analyticsSinkUrl;
   static const int _xpPerLevel = 8;
@@ -262,6 +264,9 @@ class MatchController extends ChangeNotifier {
       ? 'Pass to ${_session.activeColor.label}'
       : 'Pass device';
 
+  String get passReminderLabel =>
+      _passReminderEnabled ? 'Pass reminder on' : 'Pass reminder off';
+
   bool isThemeUnlocked(ChessSetTheme theme) {
     return playerLevel >= theme.unlockLevel;
   }
@@ -288,6 +293,7 @@ class MatchController extends ChangeNotifier {
     _selectedThemeId = ChessSetCatalog.byId(saved.selectedThemeId).id;
     _whiteAtBottom = saved.whiteAtBottom;
     _awaitingHandOff = saved.awaitingHandOff;
+    _passReminderEnabled = true;
     _clockPreset = saved.clockPreset;
     _analyticsSinkUrl = saved.analyticsSinkUrl;
     _turnStartedAtUtc = saved.turnStartedAtUtc ?? _now().toUtc();
@@ -651,6 +657,18 @@ class MatchController extends ChangeNotifier {
       _awaitingHandOff = false;
       _turnStartedAtUtc = _now().toUtc();
       _notice = '${_session.activeColor.label} can move now.';
+      await _persist();
+    });
+  }
+
+  Future<void> setPassReminderEnabled(bool value) async {
+    if (_passReminderEnabled == value) {
+      return;
+    }
+
+    await _runBusy(() async {
+      _passReminderEnabled = value;
+      _notice = value ? 'Pass reminder enabled.' : 'Pass reminder disabled.';
       await _persist();
     });
   }
