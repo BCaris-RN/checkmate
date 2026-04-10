@@ -77,34 +77,20 @@ class _MatchScreenState extends State<MatchScreen> {
                         _NoticeBanner(message: controller.notice!),
                         const SizedBox(height: AppSpacing.grid4),
                       ],
+                      _BoardCard(controller: controller),
+                      const SizedBox(height: AppSpacing.grid4),
                       Expanded(
                         child: wide
                             ? SingleChildScrollView(
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      flex: 3,
-                                      child: _BoardCard(controller: controller),
-                                    ),
-                                    const SizedBox(width: AppSpacing.grid4),
-                                    Expanded(
-                                      flex: 2,
-                                      child: _ControlColumn(
-                                        controller: controller,
-                                        hostController: _hostController,
-                                        portController: _portController,
-                                        analyticsController:
-                                            _analyticsController,
-                                      ),
-                                    ),
-                                  ],
+                                child: _ControlColumn(
+                                  controller: controller,
+                                  hostController: _hostController,
+                                  portController: _portController,
+                                  analyticsController: _analyticsController,
                                 ),
                               )
                             : ListView(
                                 children: [
-                                  _BoardCard(controller: controller),
-                                  const SizedBox(height: AppSpacing.grid4),
                                   _ControlsDrawer(
                                     controller: controller,
                                     hostController: _hostController,
@@ -276,110 +262,18 @@ class _BoardCard extends StatelessWidget {
     final theme = controller.activeTheme;
     final media = MediaQuery.sizeOf(context);
     final boardExtent = math.min(
-      media.width - (AppSpacing.grid4 * 2),
+      media.width - (AppSpacing.grid2 * 2),
       media.height * 0.92,
     );
     final isBoardLocked = controller.boardInteractionLocked;
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.grid4),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.80),
-        borderRadius: BorderRadius.circular(AppRadii.large),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.10),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.06),
-            blurRadius: 24,
-            offset: const Offset(0, 16),
-          ),
-        ],
-      ),
+      padding: EdgeInsets.zero,
+      decoration: BoxDecoration(color: Colors.transparent),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      controller.turnSummary,
-                      style: Theme.of(context).textTheme.displayMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.grid1),
-                    Text(
-                      controller.isLocal
-                          ? 'Local hot-seat play. Move, then pass the device to the next player.'
-                          : 'Standard chess layout. Tap a piece, then tap a highlighted square.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.grid1),
-                    Text(
-                      session.note,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.grid1),
-                    Text(
-                      '${theme.name} - ${theme.tagline}',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: theme.accent),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.grid4),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    controller.seatSummary,
-                    style: Theme.of(context).textTheme.labelLarge,
-                    textAlign: TextAlign.right,
-                  ),
-                  const SizedBox(height: AppSpacing.grid1),
-                  Text(
-                    controller.connectionSummary,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    textAlign: TextAlign.right,
-                  ),
-                  const SizedBox(height: AppSpacing.grid1),
-                  Text(
-                    controller.isLocal ? 'Same phone mode' : 'Connected play',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelLarge?.copyWith(color: theme.accent),
-                    textAlign: TextAlign.right,
-                  ),
-                  const SizedBox(height: AppSpacing.grid1),
-                  Text(
-                    controller.boardOrientationSummary,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelLarge?.copyWith(color: theme.accent),
-                    textAlign: TextAlign.right,
-                  ),
-                  const SizedBox(height: AppSpacing.grid1),
-                  Text(
-                    controller.levelSummary,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelLarge?.copyWith(color: theme.accent),
-                    textAlign: TextAlign.right,
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.grid2),
           SizedBox(
             width: double.infinity,
             child: Center(
@@ -484,7 +378,7 @@ class _BoardCard extends StatelessWidget {
             ),
           ],
           Text(
-            'Tip: double tap the board to unlock move and scroll interactions.',
+            '${controller.turnSummary} • ${controller.connectionSummary} • ${controller.boardOrientationSummary}',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
@@ -541,7 +435,7 @@ class _BoardGrid extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       SizedBox(
-                        width: 24,
+                        width: 16,
                         child: Column(
                           children: List.generate(MatchSession.rows, (
                             displayRow,
@@ -562,7 +456,7 @@ class _BoardGrid extends StatelessWidget {
                           }),
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.grid2),
+                      const SizedBox(width: AppSpacing.grid1),
                       Expanded(
                         child: Column(
                           children: List.generate(MatchSession.rows, (
@@ -630,29 +524,26 @@ class _BoardGrid extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.grid2),
+                const SizedBox(height: AppSpacing.grid1),
                 SizedBox(
                   height: 24,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 32),
-                    child: Row(
-                      children: List.generate(MatchSession.columns, (
-                        displayFile,
-                      ) {
-                        final boardFile = whiteAtBottom
-                            ? displayFile
-                            : 7 - displayFile;
-                        return Expanded(
-                          child: Center(
-                            child: Text(
-                              String.fromCharCode(97 + boardFile),
-                              style: Theme.of(context).textTheme.labelLarge
-                                  ?.copyWith(color: AppColors.textMuted),
-                            ),
+                  child: Row(
+                    children: List.generate(MatchSession.columns, (
+                      displayFile,
+                    ) {
+                      final boardFile = whiteAtBottom
+                          ? displayFile
+                          : 7 - displayFile;
+                      return Expanded(
+                        child: Center(
+                          child: Text(
+                            String.fromCharCode(97 + boardFile),
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(color: AppColors.textMuted),
                           ),
-                        );
-                      }),
-                    ),
+                        ),
+                      );
+                    }),
                   ),
                 ),
               ],
