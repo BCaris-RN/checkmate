@@ -67,50 +67,73 @@ class _MatchScreenState extends State<MatchScreen> {
               SafeArea(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final boardSlotHeight = wide
-                        ? constraints.maxHeight * 0.80
-                        : constraints.maxHeight * 0.60;
+                    final boardExtent = math.min(
+                      constraints.maxWidth,
+                      wide
+                          ? constraints.maxHeight * 0.80
+                          : constraints.maxHeight * 0.56,
+                    );
+                    final sheetTop = math.max(
+                      boardExtent - AppSpacing.grid4,
+                      constraints.maxHeight * 0.36,
+                    );
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    return Stack(
                       children: [
-                        SizedBox(
-                          height: boardSlotHeight,
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: 0,
+                          height: boardExtent,
                           child: _BoardCard(
                             controller: controller,
-                            maxBoardExtent: boardSlotHeight,
+                            maxBoardExtent: boardExtent,
                           ),
                         ),
-                        Expanded(
-                          child: ListView(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.grid2,
-                              AppSpacing.grid2,
-                              AppSpacing.grid2,
-                              AppSpacing.grid4,
-                            ),
-                            children: [
-                              _BoardMetaBar(controller: controller),
-                              const SizedBox(height: AppSpacing.grid2),
-                              if (controller.notice != null) ...[
-                                _NoticeBanner(message: controller.notice!),
-                                const SizedBox(height: AppSpacing.grid2),
-                              ],
-                              if (wide)
-                                _ControlColumn(
-                                  controller: controller,
-                                  hostController: _hostController,
-                                  portController: _portController,
-                                  analyticsController: _analyticsController,
-                                )
-                              else
-                                _ControlsDrawer(
-                                  controller: controller,
-                                  hostController: _hostController,
-                                  portController: _portController,
-                                  analyticsController: _analyticsController,
+                        Positioned.fill(
+                          top: sheetTop,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: AppColors.surface.withValues(alpha: 0.96),
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(AppRadii.large),
+                              ),
+                              border: Border.all(
+                                color: AppColors.textPrimary.withValues(
+                                  alpha: 0.08,
                                 ),
-                            ],
+                              ),
+                            ),
+                            child: ListView(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.grid4,
+                                AppSpacing.grid4,
+                                AppSpacing.grid4,
+                                AppSpacing.grid8,
+                              ),
+                              children: [
+                                _BoardMetaBar(controller: controller),
+                                const SizedBox(height: AppSpacing.grid2),
+                                if (controller.notice != null) ...[
+                                  _NoticeBanner(message: controller.notice!),
+                                  const SizedBox(height: AppSpacing.grid2),
+                                ],
+                                if (wide)
+                                  _ControlColumn(
+                                    controller: controller,
+                                    hostController: _hostController,
+                                    portController: _portController,
+                                    analyticsController: _analyticsController,
+                                  )
+                                else
+                                  _ControlsDrawer(
+                                    controller: controller,
+                                    hostController: _hostController,
+                                    portController: _portController,
+                                    analyticsController: _analyticsController,
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
