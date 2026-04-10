@@ -68,61 +68,52 @@ class _MatchScreenState extends State<MatchScreen> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final boardSlotHeight = wide
-                        ? constraints.maxHeight * 0.78
-                        : constraints.maxHeight * 0.54;
-                    final scrollTopInset = boardSlotHeight + AppSpacing.grid2;
+                        ? constraints.maxHeight * 0.80
+                        : constraints.maxHeight * 0.60;
 
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.grid2,
-                        AppSpacing.grid2,
-                        AppSpacing.grid2,
-                        AppSpacing.grid2,
-                      ),
-                      child: Stack(
-                        children: [
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            top: 0,
-                            height: boardSlotHeight,
-                            child: _BoardCard(
-                              controller: controller,
-                              maxBoardExtent: boardSlotHeight,
-                            ),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          height: boardSlotHeight,
+                          child: _BoardCard(
+                            controller: controller,
+                            maxBoardExtent: boardSlotHeight,
                           ),
-                          Positioned.fill(
-                            top: scrollTopInset,
-                            child: SingleChildScrollView(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _BoardMetaBar(controller: controller),
-                                  const SizedBox(height: AppSpacing.grid2),
-                                  if (controller.notice != null) ...[
-                                    _NoticeBanner(message: controller.notice!),
-                                    const SizedBox(height: AppSpacing.grid2),
-                                  ],
-                                  if (wide)
-                                    _ControlColumn(
-                                      controller: controller,
-                                      hostController: _hostController,
-                                      portController: _portController,
-                                      analyticsController: _analyticsController,
-                                    )
-                                  else
-                                    _ControlsDrawer(
-                                      controller: controller,
-                                      hostController: _hostController,
-                                      portController: _portController,
-                                      analyticsController: _analyticsController,
-                                    ),
-                                ],
-                              ),
+                        ),
+                        Expanded(
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.grid2,
+                              AppSpacing.grid2,
+                              AppSpacing.grid2,
+                              AppSpacing.grid4,
                             ),
+                            children: [
+                              _BoardMetaBar(controller: controller),
+                              const SizedBox(height: AppSpacing.grid2),
+                              if (controller.notice != null) ...[
+                                _NoticeBanner(message: controller.notice!),
+                                const SizedBox(height: AppSpacing.grid2),
+                              ],
+                              if (wide)
+                                _ControlColumn(
+                                  controller: controller,
+                                  hostController: _hostController,
+                                  portController: _portController,
+                                  analyticsController: _analyticsController,
+                                )
+                              else
+                                _ControlsDrawer(
+                                  controller: controller,
+                                  hostController: _hostController,
+                                  portController: _portController,
+                                  analyticsController: _analyticsController,
+                                ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -173,72 +164,79 @@ class _BoardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = controller.activeTheme;
-    final media = MediaQuery.sizeOf(context);
-    final boardExtent = math.min(
-      media.width - (AppSpacing.grid2 * 2),
-      maxBoardExtent,
-    );
+    final boardExtent = maxBoardExtent;
     final isBoardLocked = controller.boardInteractionLocked;
 
     return SizedBox(
       width: double.infinity,
-      child: Center(
-        child: SizedBox(
-          width: boardExtent,
-          height: boardExtent,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onDoubleTap: controller.busy
-                ? null
-                : controller.toggleBoardInteractionLock,
-            child: Stack(
-              children: [
-                IgnorePointer(
-                  ignoring: isBoardLocked,
-                  child: _BoardGrid(controller: controller, theme: theme),
-                ),
-                Positioned.fill(
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 180),
-                    opacity: isBoardLocked ? 1 : 0,
-                    child: IgnorePointer(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.textPrimary.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(
-                            AppRadii.large - 2,
-                          ),
-                        ),
-                        child: Center(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final widthDrivenExtent = math.min(constraints.maxWidth, boardExtent);
+
+          return Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(
+              width: widthDrivenExtent,
+              height: widthDrivenExtent,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onDoubleTap: controller.busy
+                    ? null
+                    : controller.toggleBoardInteractionLock,
+                child: Stack(
+                  children: [
+                    IgnorePointer(
+                      ignoring: isBoardLocked,
+                      child: _BoardGrid(controller: controller, theme: theme),
+                    ),
+                    Positioned.fill(
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 180),
+                        opacity: isBoardLocked ? 1 : 0,
+                        child: IgnorePointer(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.grid4,
-                              vertical: AppSpacing.grid2,
-                            ),
                             decoration: BoxDecoration(
-                              color: AppColors.surface.withValues(alpha: 0.92),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: AppColors.textPrimary.withValues(
-                                  alpha: 0.10,
-                                ),
+                              color: AppColors.textPrimary.withValues(
+                                alpha: 0.04,
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                AppRadii.large - 2,
                               ),
                             ),
-                            child: Text(
-                              'Double tap to unlock board',
-                              style: Theme.of(context).textTheme.labelLarge
-                                  ?.copyWith(color: AppColors.textPrimary),
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.grid4,
+                                  vertical: AppSpacing.grid2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface.withValues(
+                                    alpha: 0.92,
+                                  ),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: AppColors.textPrimary.withValues(
+                                      alpha: 0.10,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Double tap to unlock board',
+                                  style: Theme.of(context).textTheme.labelLarge
+                                      ?.copyWith(color: AppColors.textPrimary),
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
