@@ -16,10 +16,10 @@ class MatchController extends ChangeNotifier {
     LocalMatchTransport? transport,
     MatchAnalyticsSink? analyticsSink,
     DateTime Function()? now,
-  })  : _storage = storage ?? MatchStorage(),
-        _transport = transport ?? LocalMatchTransport(),
-        _analyticsSink = analyticsSink ?? MatchAnalyticsSink(),
-        _now = now ?? DateTime.now;
+  }) : _storage = storage ?? MatchStorage(),
+       _transport = transport ?? LocalMatchTransport(),
+       _analyticsSink = analyticsSink ?? MatchAnalyticsSink(),
+       _now = now ?? DateTime.now;
 
   final MatchStorage _storage;
   final LocalMatchTransport _transport;
@@ -32,6 +32,7 @@ class MatchController extends ChangeNotifier {
   String _selectedThemeId = ChessSetCatalog.chrome.id;
   bool _whiteAtBottom = true;
   bool _awaitingHandOff = false;
+  bool _boardInteractionLocked = true;
   MatchTimerPreset _clockPreset = MatchTimerPreset.infinity;
   String? _analyticsSinkUrl;
   DateTime _turnStartedAtUtc = DateTime.now().toUtc();
@@ -42,7 +43,8 @@ class MatchController extends ChangeNotifier {
   int? _joinPort;
   Uri? _joinUri;
   ChessSquare? _selectedSquare;
-  String? _notice = 'White moves first. Tap a piece, then a highlighted square.';
+  String? _notice =
+      'White moves first. Tap a piece, then a highlighted square.';
   String? _lastError;
   bool _busy = false;
   bool _pollErrorShown = false;
@@ -61,11 +63,14 @@ class MatchController extends ChangeNotifier {
   bool get isHosted => _role == MatchRole.host && _hostUri != null;
   bool get isJoined => _role == MatchRole.guest && _joinUri != null;
   bool get isLocal => _role == MatchRole.local;
-  bool get isBrowserRoomHost => kIsWeb && _role == MatchRole.host && _hostUri != null;
-  bool get isBrowserRoomGuest => kIsWeb && _role == MatchRole.guest && _joinUri != null;
+  bool get isBrowserRoomHost =>
+      kIsWeb && _role == MatchRole.host && _hostUri != null;
+  bool get isBrowserRoomGuest =>
+      kIsWeb && _role == MatchRole.guest && _joinUri != null;
   int get careerXp => _careerXp;
   bool get whiteAtBottom => _whiteAtBottom;
   bool get awaitingHandOff => _awaitingHandOff;
+  bool get boardInteractionLocked => _boardInteractionLocked;
   MatchTimerPreset get clockPreset => _clockPreset;
   String? get analyticsSinkUrl => _analyticsSinkUrl;
   static const int _xpPerLevel = 8;
@@ -83,7 +88,8 @@ class MatchController extends ChangeNotifier {
 
   ChessSetTheme get activeTheme => ChessSetCatalog.byId(_selectedThemeId);
 
-  String get levelSummary => 'Level $playerLevel - $xpIntoLevel/$_xpPerLevel XP';
+  String get levelSummary =>
+      'Level $playerLevel - $xpIntoLevel/$_xpPerLevel XP';
 
   String get unlockSummary =>
       '${unlockedThemes.length}/${availableThemes.length} sets unlocked';
@@ -199,12 +205,18 @@ class MatchController extends ChangeNotifier {
     }
 
     if (!isLocal && _session.activeColor == color && !_session.isComplete) {
-      spentMilliseconds += _now().toUtc().difference(_turnStartedAtUtc).inMilliseconds;
+      spentMilliseconds += _now()
+          .toUtc()
+          .difference(_turnStartedAtUtc)
+          .inMilliseconds;
     } else if (isLocal &&
         !_awaitingHandOff &&
         _session.activeColor == color &&
         !_session.isComplete) {
-      spentMilliseconds += _now().toUtc().difference(_turnStartedAtUtc).inMilliseconds;
+      spentMilliseconds += _now()
+          .toUtc()
+          .difference(_turnStartedAtUtc)
+          .inMilliseconds;
     }
 
     final remaining = presetDuration.inMilliseconds - spentMilliseconds;
@@ -239,10 +251,10 @@ class MatchController extends ChangeNotifier {
 
     return switch (_role) {
       MatchRole.local => !_awaitingHandOff,
-      MatchRole.host => _hostUri != null &&
-          _session.activeColor == ChessColor.white,
-      MatchRole.guest => _joinUri != null &&
-          _session.activeColor == ChessColor.black,
+      MatchRole.host =>
+        _hostUri != null && _session.activeColor == ChessColor.white,
+      MatchRole.guest =>
+        _joinUri != null && _session.activeColor == ChessColor.black,
     };
   }
 
@@ -317,6 +329,7 @@ class MatchController extends ChangeNotifier {
       _selectedSquare = null;
       _whiteAtBottom = true;
       _awaitingHandOff = false;
+      _boardInteractionLocked = true;
       _turnStartedAtUtc = _now().toUtc();
       _notice = 'Local chess board reset. White starts at the bottom.';
       await _persist();
@@ -340,12 +353,13 @@ class MatchController extends ChangeNotifier {
       _selectedSquare = null;
       _whiteAtBottom = true;
       _awaitingHandOff = false;
+      _boardInteractionLocked = true;
       _turnStartedAtUtc = _now().toUtc();
       _notice = kIsWeb
           ? 'Browser room ready. Share the invite link with another tab.'
           : launch.lanAddress == null
-              ? 'Host is live on port ${launch.port}, but no LAN address was detected.'
-              : 'Share ${launch.lanAddress}:${launch.port} with the other device.';
+          ? 'Host is live on port ${launch.port}, but no LAN address was detected.'
+          : 'Share ${launch.lanAddress}:${launch.port} with the other device.';
       _pollErrorShown = false;
       await _persist();
       if (_syncUri != null) {
@@ -354,10 +368,7 @@ class MatchController extends ChangeNotifier {
     });
   }
 
-  Future<void> joinHost({
-    required String address,
-    required int port,
-  }) async {
+  Future<void> joinHost({required String address, required int port}) async {
     await _runBusy(() async {
       final cleanedAddress = address.trim();
       if (cleanedAddress.isEmpty) {
@@ -372,8 +383,9 @@ class MatchController extends ChangeNotifier {
       }
 
       await _stopNetwork();
-      final browserRoomCode =
-          kIsWeb ? _browserRoomCodeFromInput(cleanedAddress) : null;
+      final browserRoomCode = kIsWeb
+          ? _browserRoomCodeFromInput(cleanedAddress)
+          : null;
       if (kIsWeb && (browserRoomCode == null || browserRoomCode.isEmpty)) {
         throw const MatchRuleError('Enter a valid invite link or room code.');
       }
@@ -390,6 +402,7 @@ class MatchController extends ChangeNotifier {
       _selectedSquare = null;
       _whiteAtBottom = false;
       _awaitingHandOff = false;
+      _boardInteractionLocked = true;
       _turnStartedAtUtc = _now().toUtc();
       _notice = kIsWeb
           ? 'Connected to browser room.'
@@ -465,9 +478,7 @@ class MatchController extends ChangeNotifier {
   Future<void> playMove(ChessMove move) async {
     await _runBusy(() async {
       if (!canLocalMove) {
-        throw const MatchRuleError(
-          'Pass the device before the next move.',
-        );
+        throw const MatchRuleError('Pass the device before the next move.');
       }
 
       final movingPiece = _session.pieceAt(move.from);
@@ -504,7 +515,9 @@ class MatchController extends ChangeNotifier {
         timerPreset: _clockPreset,
       );
       _awaitingHandOff = !_session.isComplete;
-      final moveSummary = '${movingPiece.color.label} moved in '
+      _boardInteractionLocked = true;
+      final moveSummary =
+          '${movingPiece.color.label} moved in '
           '${formatClock(Duration(milliseconds: elapsedMilliseconds))}.';
       _notice = _session.isComplete
           ? '$moveSummary ${_session.note}'
@@ -525,6 +538,7 @@ class MatchController extends ChangeNotifier {
       _notice = _session.note;
       _selectedSquare = null;
       _awaitingHandOff = false;
+      _boardInteractionLocked = true;
       if (_role == MatchRole.local) {
         _whiteAtBottom = true;
       }
@@ -539,6 +553,7 @@ class MatchController extends ChangeNotifier {
     _notice = _session.note;
     _selectedSquare = null;
     _awaitingHandOff = false;
+    _boardInteractionLocked = true;
     if (_role == MatchRole.local) {
       _whiteAtBottom = true;
     }
@@ -642,10 +657,19 @@ class MatchController extends ChangeNotifier {
 
       _whiteAtBottom = !_whiteAtBottom;
       _awaitingHandOff = false;
+      _boardInteractionLocked = true;
       _turnStartedAtUtc = _now().toUtc();
       _notice = '${_session.activeColor.label} can move now.';
       await _persist();
     });
+  }
+
+  void toggleBoardInteractionLock() {
+    _boardInteractionLocked = !_boardInteractionLocked;
+    _notice = _boardInteractionLocked
+        ? 'Board locked. Double tap to unlock.'
+        : 'Board unlocked. Tap a piece or scroll the page.';
+    notifyListeners();
   }
 
   ChessMove? _findLegalMove(ChessSquare from, ChessSquare to) {
@@ -721,8 +745,8 @@ class MatchController extends ChangeNotifier {
       earnedXp += resultingSession.phase == MatchPhase.draw
           ? 2
           : resultingSession.winner == movingColor
-              ? 6
-              : 2;
+          ? 6
+          : 2;
     }
 
     _careerXp += earnedXp;
@@ -752,7 +776,9 @@ class MatchController extends ChangeNotifier {
 
   Future<void> _exportLatestAnalyticsRow() async {
     final endpointText = _analyticsSinkUrl?.trim();
-    if (endpointText == null || endpointText.isEmpty || _session.moves.isEmpty) {
+    if (endpointText == null ||
+        endpointText.isEmpty ||
+        _session.moves.isEmpty) {
       return;
     }
 
@@ -767,7 +793,10 @@ class MatchController extends ChangeNotifier {
     }
 
     final moveNumber = _session.moves.length;
-    final row = analyticsRowForMove(_session.moves.last, moveNumber: moveNumber);
+    final row = analyticsRowForMove(
+      _session.moves.last,
+      moveNumber: moveNumber,
+    );
     try {
       await _analyticsSink.appendRow(endpoint, row);
       _pollErrorShown = false;
@@ -803,9 +832,7 @@ class MatchController extends ChangeNotifier {
   Uri _browserRoomUri(String roomCode) {
     final normalized = roomCode.trim();
     final base = _browserRoomUriFallback;
-    return base.replace(
-      queryParameters: <String, String>{'room': normalized},
-    );
+    return base.replace(queryParameters: <String, String>{'room': normalized});
   }
 
   String? _browserRoomCodeFromInput(String input) {

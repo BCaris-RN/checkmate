@@ -57,10 +57,7 @@ class _AppLaunchGateState extends State<AppLaunchGate> {
 }
 
 class BrandStamp extends StatelessWidget {
-  const BrandStamp({
-    super.key,
-    this.compact = false,
-  });
+  const BrandStamp({super.key, this.compact = false});
 
   final bool compact;
 
@@ -69,19 +66,19 @@ class BrandStamp extends StatelessWidget {
     final logoSize = compact ? 34.0 : 94.0;
     final titleStyle = compact
         ? Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-            )
-        : Theme.of(context).textTheme.displaySmall?.copyWith(
-              color: AppColors.textPrimary,
-            );
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          )
+        : Theme.of(
+            context,
+          ).textTheme.displaySmall?.copyWith(color: AppColors.textPrimary);
     final quoteStyle = compact
-        ? Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textMuted,
-            )
-        : Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.textMuted,
-            );
+        ? Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted)
+        : Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: AppColors.textMuted);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -102,10 +99,7 @@ class BrandStamp extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(compact ? 10 : 24),
-            child: Image.asset(
-              'assets/Icon-512.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/Icon-512.png', fit: BoxFit.cover),
           ),
         ),
         SizedBox(width: compact ? AppSpacing.grid2 : AppSpacing.grid4),
@@ -113,15 +107,8 @@ class BrandStamp extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!compact)
-              Text(
-                'Checkmate by Caris',
-                style: titleStyle,
-              ),
-            Text(
-              '"created by Caris | Phoenix : Suprama_C"',
-              style: quoteStyle,
-            ),
+            if (!compact) Text('Checkmate by Caris', style: titleStyle),
+            Text('"created by Caris | Phoenix : Suprama_C"', style: quoteStyle),
           ],
         ),
       ],
@@ -173,14 +160,11 @@ class LaunchSplashPage extends StatelessWidget {
                 builder: (context, scale, child) {
                   return Opacity(
                     opacity: (scale - 0.92) / 0.08,
-                    child: Transform.scale(
-                      scale: scale,
-                      child: child,
-                    ),
+                    child: Transform.scale(scale: scale, child: child),
                   );
                 },
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 560),
+                  constraints: const BoxConstraints(maxWidth: 680),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.grid4,
@@ -190,22 +174,58 @@ class LaunchSplashPage extends StatelessWidget {
                       children: [
                         const BrandStamp(),
                         const SizedBox(height: AppSpacing.grid4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.grid4,
+                            vertical: AppSpacing.grid2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: AppColors.accent.withValues(alpha: 0.16),
+                            ),
+                          ),
+                          child: Text(
+                            'Two players, one phone',
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(color: AppColors.accent),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.grid4),
                         Text(
-                          'Loading the board.',
+                          'A chess board designed for hot-seat play.',
                           textAlign: TextAlign.center,
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: AppColors.textPrimary,
-                                  ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(color: AppColors.textPrimary),
                         ),
                         const SizedBox(height: AppSpacing.grid1),
                         Text(
-                          'Chess, governance, and themed sets.',
+                          'Pass the device, keep the position, and unlock new sets as you play.',
                           textAlign: TextAlign.center,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppColors.textMuted,
-                                  ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.textMuted),
+                        ),
+                        const SizedBox(height: AppSpacing.grid4),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: AppSpacing.grid2,
+                          runSpacing: AppSpacing.grid2,
+                          children: const [
+                            _LaunchStep(
+                              label: '1',
+                              text: 'Start a local board',
+                            ),
+                            _LaunchStep(label: '2', text: 'Make a move'),
+                            _LaunchStep(label: '3', text: 'Pass the phone'),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.grid4),
+                        Text(
+                          'Works in GitHub Pages, on mobile, and in the browser.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textMuted),
                         ),
                       ],
                     ),
@@ -221,10 +241,7 @@ class LaunchSplashPage extends StatelessWidget {
 }
 
 class _Glow extends StatelessWidget {
-  const _Glow({
-    required this.color,
-    required this.size,
-  });
+  const _Glow({required this.color, required this.size});
 
   final Color color;
   final double size;
@@ -234,9 +251,60 @@ class _Glow extends StatelessWidget {
     return Container(
       width: size,
       height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    );
+  }
+}
+
+class _LaunchStep extends StatelessWidget {
+  const _LaunchStep({required this.label, required this.text});
+
+  final String label;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 150),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.grid4,
+        vertical: AppSpacing.grid2,
+      ),
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
+        color: AppColors.surface.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(AppRadii.medium),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(color: AppColors.accent),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.grid2),
+          Flexible(
+            child: Text(
+              text,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
+            ),
+          ),
+        ],
       ),
     );
   }

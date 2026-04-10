@@ -47,7 +47,8 @@ class _MatchScreenState extends State<MatchScreen> {
   Widget build(BuildContext context) {
     return Consumer<MatchController>(
       builder: (context, controller, _) {
-        final wide = MediaQuery.sizeOf(context).width >= 980;
+        final size = MediaQuery.sizeOf(context);
+        final wide = size.width >= 980;
         final analyticsValue = controller.analyticsSinkUrl ?? '';
         if (_analyticsController.text != analyticsValue) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -93,7 +94,8 @@ class _MatchScreenState extends State<MatchScreen> {
                                         controller: controller,
                                         hostController: _hostController,
                                         portController: _portController,
-                                        analyticsController: _analyticsController,
+                                        analyticsController:
+                                            _analyticsController,
                                       ),
                                     ),
                                   ],
@@ -103,7 +105,7 @@ class _MatchScreenState extends State<MatchScreen> {
                                 children: [
                                   _BoardCard(controller: controller),
                                   const SizedBox(height: AppSpacing.grid4),
-                                  _ControlColumn(
+                                  _ControlsDrawer(
                                     controller: controller,
                                     hostController: _hostController,
                                     portController: _portController,
@@ -138,6 +140,25 @@ class _TopBar extends StatelessWidget {
       children: [
         const BrandStamp(compact: true),
         const SizedBox(height: AppSpacing.grid2),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.grid2,
+            vertical: AppSpacing.grid1,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.accent.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: AppColors.accent.withValues(alpha: 0.16)),
+          ),
+          child: Text(
+            'Hot-seat first, network second',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.accent,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.grid2),
         Text(
           'Checkmate by Caris',
           style: Theme.of(context).textTheme.displayMedium,
@@ -152,11 +173,11 @@ class _TopBar extends StatelessWidget {
         const SizedBox(height: AppSpacing.grid1),
         Text(
           kIsWeb
-              ? 'Web note: progress saves in this browser profile only. Two people can play here from two tabs on the same computer.'
+              ? 'Web note: progress saves in this browser profile only. Two people can play here from two tabs on the same computer or one phone in turns.'
               : 'Single-device note: progress saves on this device. Use Host/Join for Wi-Fi or hotspot play.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textMuted,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
         ),
       ],
     );
@@ -204,9 +225,9 @@ class _NoticeBanner extends StatelessWidget {
       ),
       child: Text(
         message,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textPrimary,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
       ),
     );
   }
@@ -235,9 +256,9 @@ class _StatusPill extends StatelessWidget {
           label,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: AppColors.accent,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(color: AppColors.accent),
         ),
       ),
     );
@@ -253,13 +274,21 @@ class _BoardCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = controller.session;
     final theme = controller.activeTheme;
+    final media = MediaQuery.sizeOf(context);
+    final boardExtent = math.min(
+      media.width - (AppSpacing.grid4 * 2),
+      media.height * 0.92,
+    );
+    final isBoardLocked = controller.boardInteractionLocked;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.grid4),
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.80),
         borderRadius: BorderRadius.circular(AppRadii.large),
-        border: Border.all(color: AppColors.textPrimary.withValues(alpha: 0.10)),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.10),
+        ),
         boxShadow: [
           BoxShadow(
             color: AppColors.textPrimary.withValues(alpha: 0.06),
@@ -294,15 +323,15 @@ class _BoardCard extends StatelessWidget {
                     Text(
                       session.note,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.grid1),
                     Text(
                       '${theme.name} - ${theme.tagline}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: theme.accent,
-                          ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: theme.accent),
                     ),
                   ],
                 ),
@@ -317,37 +346,109 @@ class _BoardCard extends StatelessWidget {
                     textAlign: TextAlign.right,
                   ),
                   const SizedBox(height: AppSpacing.grid1),
-                    Text(
-                      controller.connectionSummary,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      textAlign: TextAlign.right,
-                    ),
-                    const SizedBox(height: AppSpacing.grid1),
-                    Text(
-                      controller.boardOrientationSummary,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: theme.accent,
-                          ),
-                      textAlign: TextAlign.right,
-                    ),
-                    const SizedBox(height: AppSpacing.grid1),
-                    Text(
-                      controller.levelSummary,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: theme.accent,
-                          ),
+                  Text(
+                    controller.connectionSummary,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    textAlign: TextAlign.right,
+                  ),
+                  const SizedBox(height: AppSpacing.grid1),
+                  Text(
+                    controller.isLocal ? 'Same phone mode' : 'Connected play',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelLarge?.copyWith(color: theme.accent),
+                    textAlign: TextAlign.right,
+                  ),
+                  const SizedBox(height: AppSpacing.grid1),
+                  Text(
+                    controller.boardOrientationSummary,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelLarge?.copyWith(color: theme.accent),
+                    textAlign: TextAlign.right,
+                  ),
+                  const SizedBox(height: AppSpacing.grid1),
+                  Text(
+                    controller.levelSummary,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelLarge?.copyWith(color: theme.accent),
                     textAlign: TextAlign.right,
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.grid4),
-          AspectRatio(
-            aspectRatio: 1,
-            child: _BoardGrid(
-              controller: controller,
-              theme: theme,
+          const SizedBox(height: AppSpacing.grid2),
+          SizedBox(
+            width: double.infinity,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: boardExtent,
+                  maxHeight: boardExtent,
+                ),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onDoubleTap: controller.busy
+                      ? null
+                      : controller.toggleBoardInteractionLock,
+                  child: Stack(
+                    children: [
+                      IgnorePointer(
+                        ignoring: isBoardLocked,
+                        child: _BoardGrid(controller: controller, theme: theme),
+                      ),
+                      Positioned.fill(
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 180),
+                          opacity: isBoardLocked ? 1 : 0,
+                          child: IgnorePointer(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.textPrimary.withValues(
+                                  alpha: 0.04,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadii.large - 2,
+                                ),
+                              ),
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.grid4,
+                                    vertical: AppSpacing.grid2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface.withValues(
+                                      alpha: 0.92,
+                                    ),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(
+                                      color: AppColors.textPrimary.withValues(
+                                        alpha: 0.10,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Double tap to unlock board',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(
+                                          color: AppColors.textPrimary,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
           Row(
@@ -355,11 +456,11 @@ class _BoardCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   controller.isLocal && controller.awaitingHandOff
-                      ? controller.turnClockSummary
+                      ? 'Pass the phone to ${session.activeColor.label}. ${controller.turnClockSummary}'
                       : session.note,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.grid4),
@@ -374,13 +475,20 @@ class _BoardCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed:
-                    controller.canPassDevice ? controller.passDevice : null,
+                onPressed: controller.canPassDevice
+                    ? controller.passDevice
+                    : null,
                 icon: const Icon(Icons.switch_camera_outlined),
                 label: Text(controller.passButtonLabel),
               ),
             ),
           ],
+          Text(
+            'Tip: double tap the board to unlock move and scroll interactions.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+          ),
         ],
       ),
     );
@@ -388,10 +496,7 @@ class _BoardCard extends StatelessWidget {
 }
 
 class _BoardGrid extends StatelessWidget {
-  const _BoardGrid({
-    required this.controller,
-    required this.theme,
-  });
+  const _BoardGrid({required this.controller, required this.theme});
 
   final MatchController controller;
   final ChessSetTheme theme;
@@ -438,56 +543,62 @@ class _BoardGrid extends StatelessWidget {
                       SizedBox(
                         width: 24,
                         child: Column(
-                          children: List.generate(
-                            MatchSession.rows,
-                            (displayRow) {
-                              final boardRow =
-                                  whiteAtBottom ? displayRow : 7 - displayRow;
-                              return Expanded(
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Text(
-                                    '${MatchSession.rows - boardRow}',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(
-                                          color: AppColors.textMuted,
-                                        ),
-                                  ),
+                          children: List.generate(MatchSession.rows, (
+                            displayRow,
+                          ) {
+                            final boardRow = whiteAtBottom
+                                ? displayRow
+                                : 7 - displayRow;
+                            return Expanded(
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  '${MatchSession.rows - boardRow}',
+                                  style: Theme.of(context).textTheme.labelLarge
+                                      ?.copyWith(color: AppColors.textMuted),
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          }),
                         ),
                       ),
                       const SizedBox(width: AppSpacing.grid2),
                       Expanded(
                         child: Column(
-                          children: List.generate(MatchSession.rows, (displayRow) {
-                            final boardRow =
-                                whiteAtBottom ? displayRow : 7 - displayRow;
+                          children: List.generate(MatchSession.rows, (
+                            displayRow,
+                          ) {
+                            final boardRow = whiteAtBottom
+                                ? displayRow
+                                : 7 - displayRow;
                             return Expanded(
                               child: Row(
-                                children: List.generate(MatchSession.columns,
-                                    (displayFile) {
-                                  final boardFile =
-                                      whiteAtBottom ? displayFile : 7 - displayFile;
+                                children: List.generate(MatchSession.columns, (
+                                  displayFile,
+                                ) {
+                                  final boardFile = whiteAtBottom
+                                      ? displayFile
+                                      : 7 - displayFile;
                                   final square = ChessSquare(
                                     file: boardFile,
                                     row: boardRow,
                                   );
-                                  final piece = session.board[boardRow][boardFile];
+                                  final piece =
+                                      session.board[boardRow][boardFile];
                                   final isLightSquare =
                                       (boardFile + boardRow) % 2 == 0;
                                   final isSelected = selectedSquare == square;
-                                  final isTarget = legalTargets.contains(square);
-                                  final isLastMove = lastMove != null &&
+                                  final isTarget = legalTargets.contains(
+                                    square,
+                                  );
+                                  final isLastMove =
+                                      lastMove != null &&
                                       (lastMove.from == square ||
                                           lastMove.to == square);
                                   final isChecked = checkedSquare == square;
                                   final canTap =
-                                      controller.canLocalMove && !session.isComplete;
+                                      controller.canLocalMove &&
+                                      !session.isComplete;
 
                                   return Expanded(
                                     child: _BoardSquare(
@@ -502,7 +613,10 @@ class _BoardGrid extends StatelessWidget {
                                       canTap: canTap,
                                       onTap: canTap
                                           ? () {
-                                              controller.tapSquare(boardFile, boardRow);
+                                              controller.tapSquare(
+                                                boardFile,
+                                                boardRow,
+                                              );
                                             }
                                           : null,
                                     ),
@@ -522,26 +636,22 @@ class _BoardGrid extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 32),
                     child: Row(
-                      children: List.generate(
-                        MatchSession.columns,
-                        (displayFile) {
-                          final boardFile =
-                              whiteAtBottom ? displayFile : 7 - displayFile;
-                          return Expanded(
-                            child: Center(
-                              child: Text(
-                                String.fromCharCode(97 + boardFile),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelLarge
-                                    ?.copyWith(
-                                      color: AppColors.textMuted,
-                                    ),
-                              ),
+                      children: List.generate(MatchSession.columns, (
+                        displayFile,
+                      ) {
+                        final boardFile = whiteAtBottom
+                            ? displayFile
+                            : 7 - displayFile;
+                        return Expanded(
+                          child: Center(
+                            child: Text(
+                              String.fromCharCode(97 + boardFile),
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(color: AppColors.textMuted),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      }),
                     ),
                   ),
                 ),
@@ -596,8 +706,8 @@ class _BoardSquare extends StatelessWidget {
     final borderColor = isChecked
         ? theme.accent.withValues(alpha: 0.92)
         : isSelected
-            ? theme.accent.withValues(alpha: 0.68)
-            : board.border.withValues(alpha: 0.16);
+        ? theme.accent.withValues(alpha: 0.68)
+        : board.border.withValues(alpha: 0.16);
 
     return Semantics(
       button: canTap,
@@ -615,9 +725,7 @@ class _BoardSquare extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [
                 squareColor,
-                (isLightSquare
-                        ? board.lightSquare.last
-                        : board.darkSquare.last)
+                (isLightSquare ? board.lightSquare.last : board.darkSquare.last)
                     .withValues(alpha: isLightSquare ? 0.92 : 0.95),
               ],
             ),
@@ -627,9 +735,7 @@ class _BoardSquare extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               if (isLastMove)
-                Container(
-                  color: theme.accent.withValues(alpha: 0.08),
-                ),
+                Container(color: theme.accent.withValues(alpha: 0.08)),
               if (isTarget)
                 Center(
                   child: piece == null
@@ -682,8 +788,9 @@ class _PieceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final material =
-        piece.color == ChessColor.white ? theme.whitePieces : theme.blackPieces;
+    final material = piece.color == ChessColor.white
+        ? theme.whitePieces
+        : theme.blackPieces;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -708,7 +815,9 @@ class _PieceBadge extends StatelessWidget {
                   colors: material.surface,
                 ),
                 border: Border.all(
-                  color: selected ? theme.accent.withValues(alpha: 0.58) : material.border,
+                  color: selected
+                      ? theme.accent.withValues(alpha: 0.58)
+                      : material.border,
                   width: selected ? 1.6 : 1.0,
                 ),
                 boxShadow: [
@@ -806,13 +915,20 @@ class _ControlColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = controller.activeTheme;
     final isWeb = kIsWeb;
+    final localModeHint = controller.isLocal
+        ? 'This is the best GitHub Pages mode: one device, two players, no setup.'
+        : isWeb
+        ? 'Invite another tab or continue as a browser room.'
+        : 'Host a local network match or return to hot-seat play.';
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.grid4),
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(AppRadii.large),
-        border: Border.all(color: AppColors.textPrimary.withValues(alpha: 0.10)),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.10),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -823,17 +939,18 @@ class _ControlColumn extends StatelessWidget {
             style: Theme.of(context).textTheme.displayMedium,
           ),
           const SizedBox(height: AppSpacing.grid1),
-          Text(
-            isWeb
-                ? 'Browser rooms work between tabs in the same browser profile. Local chess still works immediately.'
-                : 'Local chess works immediately. Use Pass after each move to hand the device over.',
-            style: Theme.of(context).textTheme.bodyMedium,
+          Text(localModeHint, style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: AppSpacing.grid4),
+          _QuickStartStrip(
+            title: 'Best way to play here',
+            items: const [
+              'Tap New local game',
+              'Move with highlighted squares',
+              'Pass the phone when prompted',
+            ],
           ),
           const SizedBox(height: AppSpacing.grid4),
-          Text(
-            'Timer settings',
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
+          Text('Timer settings', style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: AppSpacing.grid1),
           Text(
             'Pick the move clock you want for hot-seat play. Infinity only tracks move times.',
@@ -843,27 +960,28 @@ class _ControlColumn extends StatelessWidget {
           Wrap(
             spacing: AppSpacing.grid2,
             runSpacing: AppSpacing.grid2,
-            children: <MatchTimerPreset>[
-              MatchTimerPreset.fiveMinutes,
-              MatchTimerPreset.tenMinutes,
-              MatchTimerPreset.fifteenMinutes,
-              MatchTimerPreset.thirtyMinutes,
-              MatchTimerPreset.infinity,
-            ]
-                .map(
-                  (preset) => ChoiceChip(
-                    label: Text(preset.label),
-                    selected: controller.clockPreset == preset,
-                    onSelected: controller.busy
-                        ? null
-                        : (selected) {
-                            if (selected) {
-                              unawaited(controller.setClockPreset(preset));
-                            }
-                          },
-                  ),
-                )
-                .toList(growable: false),
+            children:
+                <MatchTimerPreset>[
+                      MatchTimerPreset.fiveMinutes,
+                      MatchTimerPreset.tenMinutes,
+                      MatchTimerPreset.fifteenMinutes,
+                      MatchTimerPreset.thirtyMinutes,
+                      MatchTimerPreset.infinity,
+                    ]
+                    .map(
+                      (preset) => ChoiceChip(
+                        label: Text(preset.label),
+                        selected: controller.clockPreset == preset,
+                        onSelected: controller.busy
+                            ? null
+                            : (selected) {
+                                if (selected) {
+                                  unawaited(controller.setClockPreset(preset));
+                                }
+                              },
+                      ),
+                    )
+                    .toList(growable: false),
           ),
           const SizedBox(height: AppSpacing.grid2),
           _TimerSummaryCard(controller: controller),
@@ -911,7 +1029,9 @@ class _ControlColumn extends StatelessWidget {
                     } on FormatException {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Port must be a number.')),
+                          const SnackBar(
+                            content: Text('Port must be a number.'),
+                          ),
                         );
                       }
                     }
@@ -925,24 +1045,21 @@ class _ControlColumn extends StatelessWidget {
           const SizedBox(height: AppSpacing.grid1),
           TextField(
             controller: hostController,
-            textInputAction: isWeb ? TextInputAction.done : TextInputAction.next,
+            textInputAction: isWeb
+                ? TextInputAction.done
+                : TextInputAction.next,
             decoration: InputDecoration(
               hintText: isWeb ? 'https://.../?room=ABC123' : '192.168.1.10',
             ),
           ),
           if (!isWeb) ...[
             const SizedBox(height: AppSpacing.grid2),
-            Text(
-              'Port',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
+            Text('Port', style: Theme.of(context).textTheme.labelLarge),
             const SizedBox(height: AppSpacing.grid1),
             TextField(
               controller: portController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                hintText: '5050',
-              ),
+              decoration: const InputDecoration(hintText: '5050'),
             ),
           ],
           const SizedBox(height: AppSpacing.grid4),
@@ -953,10 +1070,7 @@ class _ControlColumn extends StatelessWidget {
             analyticsController: analyticsController,
           ),
           const SizedBox(height: AppSpacing.grid4),
-          Text(
-            'Set collection',
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
+          Text('Set collection', style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: AppSpacing.grid1),
           Text(
             'Chrome starts open. Play to unlock crystal, gold, carbon fiber, and the stranger sets.',
@@ -978,7 +1092,8 @@ class _ControlColumn extends StatelessWidget {
                         width: tileWidth,
                         child: _ThemeTile(
                           theme: availableTheme,
-                          selected: availableTheme.id == controller.activeTheme.id,
+                          selected:
+                              availableTheme.id == controller.activeTheme.id,
                           unlocked: controller.isThemeUnlocked(availableTheme),
                           onTap: controller.busy
                               ? null
@@ -993,16 +1108,10 @@ class _ControlColumn extends StatelessWidget {
           const SizedBox(height: AppSpacing.grid4),
           _HostDetails(controller: controller),
           const SizedBox(height: AppSpacing.grid4),
-          Text(
-            'Move history',
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
+          Text('Move history', style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: AppSpacing.grid2),
           if (controller.historyLines.isEmpty)
-            Text(
-              'No moves yet.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            )
+            Text('No moves yet.', style: Theme.of(context).textTheme.bodyMedium)
           else
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1015,14 +1124,127 @@ class _ControlColumn extends StatelessWidget {
                       child: Text(
                         line,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
                   )
                   .toList(growable: false),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickStartStrip extends StatelessWidget {
+  const _QuickStartStrip({required this.title, required this.items});
+
+  final String title;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.grid4),
+      decoration: BoxDecoration(
+        color: AppColors.textPrimary.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(AppRadii.medium),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: AppSpacing.grid2),
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.grid1),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '•',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.accent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.grid2),
+                  Expanded(
+                    child: Text(
+                      item,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ControlsDrawer extends StatelessWidget {
+  const _ControlsDrawer({
+    required this.controller,
+    required this.hostController,
+    required this.portController,
+    required this.analyticsController,
+  });
+
+  final MatchController controller;
+  final TextEditingController hostController;
+  final TextEditingController portController;
+  final TextEditingController analyticsController;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(AppRadii.large),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          tilePadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.grid4,
+            vertical: AppSpacing.grid2,
+          ),
+          childrenPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.grid4,
+            0,
+            AppSpacing.grid4,
+            AppSpacing.grid4,
+          ),
+          title: Text(
+            'Controls',
+            style: Theme.of(context).textTheme.displayMedium,
+          ),
+          subtitle: Text(
+            'Collapsed by default so the board stays dominant.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          children: [
+            _ControlColumn(
+              controller: controller,
+              hostController: hostController,
+              portController: portController,
+              analyticsController: analyticsController,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1046,7 +1268,9 @@ class _ActionButtonRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.textPrimary.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(AppRadii.medium),
-        border: Border.all(color: AppColors.textPrimary.withValues(alpha: 0.08)),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.08),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1054,15 +1278,12 @@ class _ActionButtonRow extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: AppSpacing.grid1),
-          Text(
-            description,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text(description, style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: AppSpacing.grid2),
           ElevatedButton(
             onPressed: onPressed == null ? null : () => onPressed!.call(),
@@ -1075,10 +1296,7 @@ class _ActionButtonRow extends StatelessWidget {
 }
 
 class _CareerProgressPanel extends StatelessWidget {
-  const _CareerProgressPanel({
-    required this.controller,
-    required this.theme,
-  });
+  const _CareerProgressPanel({required this.controller, required this.theme});
 
   final MatchController controller;
   final ChessSetTheme theme;
@@ -1122,9 +1340,9 @@ class _CareerProgressPanel extends StatelessWidget {
               ),
               Text(
                 theme.name,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: theme.accent,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(color: theme.accent),
               ),
             ],
           ),
@@ -1132,9 +1350,9 @@ class _CareerProgressPanel extends StatelessWidget {
           Text(
             controller.levelSummary,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: AppSpacing.grid1),
           ClipRRect(
@@ -1154,9 +1372,9 @@ class _CareerProgressPanel extends StatelessWidget {
           const SizedBox(height: AppSpacing.grid1),
           Text(
             controller.nextUnlockSummary,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: theme.accent,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: theme.accent),
           ),
         ],
       ),
@@ -1204,9 +1422,9 @@ class _TimerSummaryCard extends StatelessWidget {
               ),
               Text(
                 controller.timeControlSummary,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: theme.accent,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(color: theme.accent),
               ),
             ],
           ),
@@ -1214,9 +1432,9 @@ class _TimerSummaryCard extends StatelessWidget {
           Text(
             controller.turnClockSummary,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: AppSpacing.grid1),
           if (controller.session.isComplete)
@@ -1256,10 +1474,7 @@ class _TimerSummaryCard extends StatelessWidget {
 }
 
 class _TimePill extends StatelessWidget {
-  const _TimePill({
-    required this.label,
-    required this.value,
-  });
+  const _TimePill({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -1274,7 +1489,9 @@ class _TimePill extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.60),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.textPrimary.withValues(alpha: 0.08)),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.08),
+        ),
       ),
       child: Text(
         '$label $value',
@@ -1295,14 +1512,18 @@ class _AnalyticsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = controller.analyticsRows.reversed.take(8).toList(growable: false);
+    final rows = controller.analyticsRows.reversed
+        .take(8)
+        .toList(growable: false);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.grid4),
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(AppRadii.medium),
-        border: Border.all(color: AppColors.textPrimary.withValues(alpha: 0.08)),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.08),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1316,10 +1537,12 @@ class _AnalyticsPanel extends StatelessWidget {
                 ),
               ),
               Text(
-                rows.isEmpty ? '0 rows' : '${controller.analyticsRows.length} rows',
+                rows.isEmpty
+                    ? '0 rows'
+                    : '${controller.analyticsRows.length} rows',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: controller.activeTheme.accent,
-                    ),
+                  color: controller.activeTheme.accent,
+                ),
               ),
             ],
           ),
@@ -1343,9 +1566,9 @@ class _AnalyticsPanel extends StatelessWidget {
           const SizedBox(height: AppSpacing.grid1),
           Text(
             'Plain sheet links are saved as references. For live writes, use a Google Apps Script web app URL attached to that sheet.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textMuted,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
           ),
           const SizedBox(height: AppSpacing.grid2),
           Wrap(
@@ -1356,10 +1579,14 @@ class _AnalyticsPanel extends StatelessWidget {
                 onPressed: controller.busy
                     ? null
                     : () async {
-                        await controller.setAnalyticsSinkUrl(analyticsController.text);
+                        await controller.setAnalyticsSinkUrl(
+                          analyticsController.text,
+                        );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Analytics link saved.')),
+                            const SnackBar(
+                              content: Text('Analytics link saved.'),
+                            ),
                           );
                         }
                       },
@@ -1374,7 +1601,9 @@ class _AnalyticsPanel extends StatelessWidget {
                         );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Analytics CSV copied.')),
+                            const SnackBar(
+                              content: Text('Analytics CSV copied.'),
+                            ),
                           );
                         }
                       },
@@ -1385,9 +1614,9 @@ class _AnalyticsPanel extends StatelessWidget {
           const SizedBox(height: AppSpacing.grid2),
           Text(
             controller.analyticsSheetLabel,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textMuted,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
           ),
           const SizedBox(height: AppSpacing.grid2),
           if (rows.isEmpty)
@@ -1401,7 +1630,11 @@ class _AnalyticsPanel extends StatelessWidget {
               child: Table(
                 defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                 columnWidths: <int, TableColumnWidth>{
-                  for (var index = 0; index < matchAnalyticsHeaders.length; index += 1)
+                  for (
+                    var index = 0;
+                    index < matchAnalyticsHeaders.length;
+                    index += 1
+                  )
                     index: const IntrinsicColumnWidth(),
                 },
                 children: [
@@ -1409,10 +1642,14 @@ class _AnalyticsPanel extends StatelessWidget {
                     children: matchAnalyticsHeaders
                         .map(
                           (header) => Padding(
-                            padding: const EdgeInsets.only(right: AppSpacing.grid2, bottom: AppSpacing.grid1),
+                            padding: const EdgeInsets.only(
+                              right: AppSpacing.grid2,
+                              bottom: AppSpacing.grid1,
+                            ),
                             child: Text(
                               header,
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
                                     color: controller.activeTheme.accent,
                                   ),
                             ),
@@ -1520,7 +1757,8 @@ class _ThemeTile extends StatelessWidget {
                       Expanded(
                         child: Text(
                           theme.name,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(
                                 color: AppColors.textPrimary,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1540,9 +1778,9 @@ class _ThemeTile extends StatelessWidget {
                           unlocked
                               ? (selected ? 'Selected' : 'Ready')
                               : 'Level ${theme.unlockLevel}',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: theme.accent,
-                              ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.labelSmall?.copyWith(color: theme.accent),
                         ),
                       ),
                     ],
@@ -1558,9 +1796,9 @@ class _ThemeTile extends StatelessWidget {
                   const SizedBox(height: AppSpacing.grid2),
                   Text(
                     theme.tagline,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textMuted,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
                   ),
                 ],
               ),
@@ -1597,9 +1835,8 @@ class _ThemeTile extends StatelessWidget {
                         const SizedBox(width: AppSpacing.grid1),
                         Text(
                           'Locked',
-                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                color: theme.accent,
-                              ),
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: theme.accent),
                         ),
                       ],
                     ),
@@ -1614,9 +1851,7 @@ class _ThemeTile extends StatelessWidget {
 }
 
 class _MiniMaterialSwatch extends StatelessWidget {
-  const _MiniMaterialSwatch({
-    required this.material,
-  });
+  const _MiniMaterialSwatch({required this.material});
 
   final ChessSurfaceMaterial material;
 
@@ -1658,9 +1893,11 @@ class _HostDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     final isWeb = kIsWeb;
     final shareText = controller.hostShareText;
-    final hostText = shareText ?? (isWeb
-        ? 'Host this device to generate a shareable browser invite.'
-        : 'Host this device to generate a shareable address.');
+    final hostText =
+        shareText ??
+        (isWeb
+            ? 'Host this device to generate a shareable browser invite.'
+            : 'Host this device to generate a shareable address.');
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.grid4),
@@ -1674,16 +1911,16 @@ class _HostDetails extends StatelessWidget {
         children: [
           Text(
             isWeb ? 'Share this invite link' : 'Share this address',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: AppColors.accent,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(color: AppColors.accent),
           ),
           const SizedBox(height: AppSpacing.grid1),
           Text(
             hostText,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textPrimary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppColors.textPrimary),
           ),
           const SizedBox(height: AppSpacing.grid2),
           OutlinedButton(
@@ -1693,9 +1930,7 @@ class _HostDetails extends StatelessWidget {
                     if (shareValue == null) {
                       return;
                     }
-                    await Clipboard.setData(
-                      ClipboardData(text: shareValue),
-                    );
+                    await Clipboard.setData(ClipboardData(text: shareValue));
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -1776,19 +2011,13 @@ class _Glow extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 }
 
 class _SurfacePatternPainter extends CustomPainter {
-  const _SurfacePatternPainter({
-    required this.pattern,
-    required this.color,
-  });
+  const _SurfacePatternPainter({required this.pattern, required this.color});
 
   final ChessSurfacePattern pattern;
   final Color color;
@@ -1865,7 +2094,11 @@ class _SurfacePatternPainter extends CustomPainter {
     final step = 18.0;
     for (var x = -step; x <= size.width + step; x += step) {
       paint.color = color.withValues(alpha: 0.09);
-      canvas.drawLine(Offset(x, 0), Offset(x + size.height, size.height), paint);
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.height, size.height),
+        paint,
+      );
       paint.color = color.withValues(alpha: 0.05);
       canvas.drawLine(
         Offset(x + step * 0.5, 0),
@@ -1885,14 +2118,15 @@ class _SurfacePatternPainter extends CustomPainter {
     final minimumRadius = math.max(4.0, maxRadius * 0.2);
     for (var radius = maxRadius; radius > minimumRadius; radius -= 12) {
       paint.color = color.withValues(alpha: 0.10);
-      canvas.drawOval(
-        Rect.fromCircle(center: center, radius: radius),
-        paint,
-      );
+      canvas.drawOval(Rect.fromCircle(center: center, radius: radius), paint);
     }
     paint.color = color.withValues(alpha: 0.05);
     canvas.drawLine(Offset(0, center.dy), Offset(size.width, center.dy), paint);
-    canvas.drawLine(Offset(center.dx, 0), Offset(center.dx, size.height), paint);
+    canvas.drawLine(
+      Offset(center.dx, 0),
+      Offset(center.dx, size.height),
+      paint,
+    );
   }
 
   void _paintAurora(Canvas canvas, Size size, Paint paint) {
@@ -1905,7 +2139,8 @@ class _SurfacePatternPainter extends CustomPainter {
       final path = Path()..moveTo(0, centerY);
       for (var x = 0.0; x <= width; x += math.max(8.0, width / 12)) {
         final t = x / math.max(1.0, width);
-        final y = centerY +
+        final y =
+            centerY +
             math.sin((t * math.pi * 2.0) + phase) * amplitude +
             math.cos((t * math.pi * 4.0) + phase) * (amplitude * 0.35);
         path.lineTo(x, y);
