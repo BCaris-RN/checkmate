@@ -73,10 +73,6 @@ class _MatchScreenState extends State<MatchScreen> {
                           ? constraints.maxHeight * 0.80
                           : constraints.maxHeight * 0.56,
                     );
-                    final sheetTop = math.max(
-                      boardExtent - AppSpacing.grid4,
-                      constraints.maxHeight * 0.36,
-                    );
 
                     return Stack(
                       children: [
@@ -91,7 +87,7 @@ class _MatchScreenState extends State<MatchScreen> {
                           ),
                         ),
                         Positioned.fill(
-                          top: sheetTop,
+                          top: boardExtent,
                           child: DecoratedBox(
                             decoration: BoxDecoration(
                               color: AppColors.surface.withValues(alpha: 0.96),
@@ -188,7 +184,6 @@ class _BoardCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = controller.activeTheme;
     final boardExtent = maxBoardExtent;
-    final isBoardLocked = controller.boardInteractionLocked;
 
     return SizedBox(
       width: double.infinity,
@@ -201,62 +196,7 @@ class _BoardCard extends StatelessWidget {
             child: SizedBox(
               width: widthDrivenExtent,
               height: widthDrivenExtent,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onDoubleTap: controller.busy
-                    ? null
-                    : controller.toggleBoardInteractionLock,
-                child: Stack(
-                  children: [
-                    IgnorePointer(
-                      ignoring: isBoardLocked,
-                      child: _BoardGrid(controller: controller, theme: theme),
-                    ),
-                    Positioned.fill(
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 180),
-                        opacity: isBoardLocked ? 1 : 0,
-                        child: IgnorePointer(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.textPrimary.withValues(
-                                alpha: 0.04,
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                AppRadii.large - 2,
-                              ),
-                            ),
-                            child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.grid4,
-                                  vertical: AppSpacing.grid2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surface.withValues(
-                                    alpha: 0.92,
-                                  ),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: AppColors.textPrimary.withValues(
-                                      alpha: 0.10,
-                                    ),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Double tap to unlock board',
-                                  style: Theme.of(context).textTheme.labelLarge
-                                      ?.copyWith(color: AppColors.textPrimary),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: _BoardGrid(controller: controller, theme: theme),
             ),
           );
         },

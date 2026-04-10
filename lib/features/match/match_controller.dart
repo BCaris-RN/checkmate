@@ -32,7 +32,6 @@ class MatchController extends ChangeNotifier {
   String _selectedThemeId = ChessSetCatalog.chrome.id;
   bool _whiteAtBottom = true;
   bool _awaitingHandOff = false;
-  bool _boardInteractionLocked = true;
   MatchTimerPreset _clockPreset = MatchTimerPreset.infinity;
   String? _analyticsSinkUrl;
   DateTime _turnStartedAtUtc = DateTime.now().toUtc();
@@ -70,7 +69,6 @@ class MatchController extends ChangeNotifier {
   int get careerXp => _careerXp;
   bool get whiteAtBottom => _whiteAtBottom;
   bool get awaitingHandOff => _awaitingHandOff;
-  bool get boardInteractionLocked => _boardInteractionLocked;
   MatchTimerPreset get clockPreset => _clockPreset;
   String? get analyticsSinkUrl => _analyticsSinkUrl;
   static const int _xpPerLevel = 8;
@@ -329,7 +327,6 @@ class MatchController extends ChangeNotifier {
       _selectedSquare = null;
       _whiteAtBottom = true;
       _awaitingHandOff = false;
-      _boardInteractionLocked = true;
       _turnStartedAtUtc = _now().toUtc();
       _notice = 'Local chess board reset. White starts at the bottom.';
       await _persist();
@@ -353,7 +350,6 @@ class MatchController extends ChangeNotifier {
       _selectedSquare = null;
       _whiteAtBottom = true;
       _awaitingHandOff = false;
-      _boardInteractionLocked = true;
       _turnStartedAtUtc = _now().toUtc();
       _notice = kIsWeb
           ? 'Browser room ready. Share the invite link with another tab.'
@@ -402,7 +398,6 @@ class MatchController extends ChangeNotifier {
       _selectedSquare = null;
       _whiteAtBottom = false;
       _awaitingHandOff = false;
-      _boardInteractionLocked = true;
       _turnStartedAtUtc = _now().toUtc();
       _notice = kIsWeb
           ? 'Connected to browser room.'
@@ -515,7 +510,6 @@ class MatchController extends ChangeNotifier {
         timerPreset: _clockPreset,
       );
       _awaitingHandOff = !_session.isComplete;
-      _boardInteractionLocked = true;
       final moveSummary =
           '${movingPiece.color.label} moved in '
           '${formatClock(Duration(milliseconds: elapsedMilliseconds))}.';
@@ -538,7 +532,6 @@ class MatchController extends ChangeNotifier {
       _notice = _session.note;
       _selectedSquare = null;
       _awaitingHandOff = false;
-      _boardInteractionLocked = true;
       if (_role == MatchRole.local) {
         _whiteAtBottom = true;
       }
@@ -553,7 +546,6 @@ class MatchController extends ChangeNotifier {
     _notice = _session.note;
     _selectedSquare = null;
     _awaitingHandOff = false;
-    _boardInteractionLocked = true;
     if (_role == MatchRole.local) {
       _whiteAtBottom = true;
     }
@@ -657,19 +649,10 @@ class MatchController extends ChangeNotifier {
 
       _whiteAtBottom = !_whiteAtBottom;
       _awaitingHandOff = false;
-      _boardInteractionLocked = true;
       _turnStartedAtUtc = _now().toUtc();
       _notice = '${_session.activeColor.label} can move now.';
       await _persist();
     });
-  }
-
-  void toggleBoardInteractionLock() {
-    _boardInteractionLocked = !_boardInteractionLocked;
-    _notice = _boardInteractionLocked
-        ? 'Board locked. Double tap to unlock.'
-        : 'Board unlocked. Tap a piece or scroll the page.';
-    notifyListeners();
   }
 
   ChessMove? _findLegalMove(ChessSquare from, ChessSquare to) {
