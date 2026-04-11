@@ -1,14 +1,18 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/tokens/design_tokens.g.dart';
 import '../chess_set_themes.dart';
 import '../match_controller.dart';
+import '../match_replay_file.dart';
 import '../match_models.dart';
 import '../match_time.dart';
+import 'match_viewer_screen.dart';
 
 class MatchScreen extends StatefulWidget {
   const MatchScreen({super.key});
@@ -92,7 +96,10 @@ class _MatchScreenState extends State<MatchScreen> {
                               ),
                               children: [
                                 if (controller.notice != null) ...[
-                                  _NoticeBanner(message: controller.notice!),
+                                  _NoticeBanner(
+                                    controller: controller,
+                                    message: controller.notice!,
+                                  ),
                                   const SizedBox(height: AppSpacing.grid2),
                                 ],
                                 _PassReminderTile(controller: controller),
@@ -116,29 +123,57 @@ class _MatchScreenState extends State<MatchScreen> {
 }
 
 class _NoticeBanner extends StatelessWidget {
-  const _NoticeBanner({required this.message});
+  const _NoticeBanner({required this.controller, required this.message});
 
+  final MatchController controller;
   final String message;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.grid4,
-        vertical: AppSpacing.grid4,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.textPrimary.withValues(alpha: 0.05),
+    final tappable = controller.canPassDevice && controller.isLocal;
+
+    return Material(
+      color: AppColors.textPrimary.withValues(alpha: 0.05),
+      borderRadius: BorderRadius.circular(AppRadii.medium),
+      child: InkWell(
         borderRadius: BorderRadius.circular(AppRadii.medium),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.10),
+        onTap: tappable && !controller.busy
+            ? () => unawaited(controller.passDevice())
+            : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.grid4,
+            vertical: AppSpacing.grid4,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.medium),
+            border: Border.all(
+              color: tappable
+                  ? controller.activeTheme.accent.withValues(alpha: 0.34)
+                  : AppColors.textPrimary.withValues(alpha: 0.10),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              if (tappable) ...[
+                const SizedBox(width: AppSpacing.grid2),
+                Icon(
+                  Icons.swap_horiz,
+                  size: 18,
+                  color: controller.activeTheme.accent,
+                ),
+              ],
+            ],
+          ),
         ),
-      ),
-      child: Text(
-        message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
       ),
     );
   }
@@ -677,6 +712,86 @@ class _ControlColumn extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.grid4),
           _PassReminderTile(controller: controller),
+          const SizedBox(height: AppSpacing.grid4),
+          Text('Move export', style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: AppSpacing.grid1),
+          Text(
+            'Copy the move text or open an email draft with the move list attached.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: AppSpacing.grid2),
+          Wrap(
+            spacing: AppSpacing.grid2,
+            runSpacing: AppSpacing.grid2,
+            children: [
+              OutlinedButton.icon(
+                onPressed: controller.busy
+                    ? null
+                    : () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: controller.moveLogText),
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Move text copied.')),
+                          );
+                        }
+                      },
+                icon: const Icon(Icons.copy),
+                label: const Text('Copy moves'),
+              ),
+              ElevatedButton.icon(
+                onPressed: controller.busy
+                    ? null
+                    : () async {
+                        final subject = Uri.encodeComponent(
+                          'Checkmate move list',
+                        );
+                        final body = Uri.encodeComponent(
+                          controller.moveLogText,
+                        );
+                        final uri = Uri.parse(
+                          'mailto:?subject=$subject&body=$body',
+                        );
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri);
+                        }
+                      },
+                icon: const Icon(Icons.email_outlined),
+                label: const Text('Email moves'),
+              ),
+              OutlinedButton.icon(
+                onPressed: controller.busy
+                    ? null
+                    : () async {
+                        final fileName =
+                            'checkmate_replay_${DateTime.now().toUtc().toIso8601String().replaceAll(':', '-').replaceAll('.', '-')}.txt';
+                        final path = await saveMatchReplayText(
+                          fileName: fileName,
+                          contents: controller.replayExportText,
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Saved replay file: $path')),
+                          );
+                        }
+                      },
+                icon: const Icon(Icons.save_alt),
+                label: const Text('Export .txt'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const MatchViewerScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.slideshow),
+                label: const Text('Match viewer'),
+              ),
+            ],
+          ),
         ],
       ),
     );
