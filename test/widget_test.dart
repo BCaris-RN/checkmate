@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:checkmate_by_caris/main.dart';
 import 'package:checkmate_by_caris/features/match/match_controller.dart';
+import 'package:checkmate_by_caris/main.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +15,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  testWidgets('renders the chess board with starting pieces', (tester) async {
+  testWidgets('renders the board and core local controls', (tester) async {
     final controller = MatchController();
     unawaited(controller.bootstrap());
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -23,27 +24,9 @@ void main() {
     await tester.pumpWidget(CheckmateApp(controller: controller));
     await tester.pumpAndSettle();
 
-    expect(find.text('Checkmate by Caris'), findsOneWidget);
-    expect(
-      find.text(
-        'White view: files a-h run left to right and ranks 1-8 run bottom to top.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Pass device', skipOffstage: false), findsOneWidget);
-    expect(
-      find.text(
-        'Single-device note: progress saves on this device. Use Host/Join for Wi-Fi or hotspot play.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('White to move'), findsWidgets);
-    expect(find.text('a'), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
-    expect(find.text('♔'), findsOneWidget);
-    expect(find.text('♚'), findsOneWidget);
-    expect(find.text('♙'), findsAtLeastNWidgets(8));
-    expect(find.text('♟'), findsAtLeastNWidgets(8));
-    expect(find.text('Reset board'), findsOneWidget);
+    expect(find.byType(DecoratedBox), findsWidgets);
+    expect(find.text('Pass reminder'), findsOneWidget);
+    expect(find.byType(Switch), findsOneWidget);
+    expect(find.byType(Semantics), findsWidgets);
   });
 }

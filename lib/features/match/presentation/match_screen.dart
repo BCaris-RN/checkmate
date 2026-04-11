@@ -199,7 +199,7 @@ class _BoardCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(AppRadii.large - 2),
                   border: Border.all(
-                    color: AppColors.textPrimary.withValues(alpha: 0.10),
+                    color: AppColors.textPrimary.withValues(alpha: 0.08),
                   ),
                 ),
                 child: _BoardGrid(controller: controller, theme: theme),
@@ -283,11 +283,15 @@ class _BoardGrid extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadii.large - 2),
-        border: Border.all(color: board.border.withValues(alpha: 0.18)),
+        border: Border.all(color: board.border.withValues(alpha: 0.14)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: board.frame,
+          colors: [
+            board.lightSquare.first,
+            board.lightSquare.last,
+            board.darkSquare.first,
+          ],
           stops: const [0.0, 0.56, 1.0],
         ),
       ),
@@ -318,7 +322,7 @@ class _BoardGrid extends StatelessWidget {
                                   '${MatchSession.rows - boardRow}',
                                   style: Theme.of(context).textTheme.labelSmall
                                       ?.copyWith(
-                                        color: AppColors.textMuted,
+                                        color: board.border,
                                         fontSize: 9,
                                       ),
                                 ),
@@ -410,10 +414,7 @@ class _BoardGrid extends StatelessWidget {
                           child: Text(
                             String.fromCharCode(97 + boardFile),
                             style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: AppColors.textMuted,
-                                  fontSize: 9,
-                                ),
+                                ?.copyWith(color: board.border, fontSize: 9),
                           ),
                         ),
                       );
@@ -505,21 +506,21 @@ class _BoardSquare extends StatelessWidget {
                 Center(
                   child: piece == null
                       ? Container(
-                          width: 8,
-                          height: 8,
+                          width: 7,
+                          height: 7,
                           decoration: BoxDecoration(
                             color: theme.accent.withValues(alpha: 0.72),
                             shape: BoxShape.circle,
                           ),
                         )
                       : Container(
-                          width: 24,
-                          height: 24,
+                          width: 20,
+                          height: 20,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: theme.accent.withValues(alpha: 0.58),
-                              width: 1.5,
+                              width: 1.25,
                             ),
                           ),
                         ),
@@ -559,10 +560,10 @@ class _PieceBadge extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = constraints.biggest.shortestSide * 0.86;
+        final size = constraints.biggest.shortestSide * 0.82;
         final shadowColor = selected
-            ? theme.accent.withValues(alpha: 0.22)
-            : material.shadow.withValues(alpha: 0.42);
+            ? theme.accent.withValues(alpha: 0.16)
+            : material.shadow.withValues(alpha: 0.30);
 
         return AnimatedScale(
           duration: const Duration(milliseconds: 140),
@@ -587,8 +588,8 @@ class _PieceBadge extends StatelessWidget {
                 boxShadow: [
                   BoxShadow(
                     color: shadowColor,
-                    blurRadius: selected ? 6 : 4,
-                    offset: const Offset(0, 2),
+                    blurRadius: selected ? 4 : 3,
+                    offset: const Offset(0, 1),
                   ),
                 ],
               ),
@@ -597,10 +598,10 @@ class _PieceBadge extends StatelessWidget {
                   piece.symbol,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: size * 0.74,
+                    fontSize: size * 0.66,
                     height: 1,
                     color: material.symbolColor,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                     fontFamilyFallback: const <String>[
                       'Segoe UI Symbol',
                       'Noto Sans Symbols 2',
@@ -608,8 +609,8 @@ class _PieceBadge extends StatelessWidget {
                     ],
                     shadows: [
                       Shadow(
-                        color: material.shadow.withValues(alpha: 0.28),
-                        blurRadius: 0.5,
+                        color: material.shadow.withValues(alpha: 0.18),
+                        blurRadius: 0.25,
                         offset: const Offset(0, 1),
                       ),
                     ],
