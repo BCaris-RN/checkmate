@@ -695,24 +695,36 @@ class _ControlColumn extends StatelessWidget {
           _TimerSummaryCard(controller: controller),
           const SizedBox(height: AppSpacing.grid4),
           if (controller.isLocal) ...[
-            FilledButton.icon(
-              onPressed: controller.busy
-                  ? null
-                  : () => unawaited(controller.flipBoard()),
-              icon: const Icon(Icons.flip),
-              label: Text(
-                controller.whiteAtBottom
-                    ? 'Flip to black at bottom'
-                    : 'Flip to white at bottom',
-              ),
-            ),
-            const SizedBox(height: AppSpacing.grid2),
-            FilledButton.tonalIcon(
-              onPressed: controller.busy || !controller.canPassDevice
-                  ? null
-                  : () => unawaited(controller.passDevice()),
-              icon: const Icon(Icons.swap_horiz),
-              label: Text(controller.passButtonLabel),
+            Wrap(
+              spacing: AppSpacing.grid2,
+              runSpacing: AppSpacing.grid2,
+              children: [
+                FilledButton.icon(
+                  onPressed: controller.busy
+                      ? null
+                      : () => unawaited(controller.flipBoard()),
+                  icon: const Icon(Icons.flip),
+                  label: Text(
+                    controller.whiteAtBottom
+                        ? 'Flip to black at bottom'
+                        : 'Flip to white at bottom',
+                  ),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: controller.busy || !controller.canPassDevice
+                      ? null
+                      : () => unawaited(controller.passDevice()),
+                  icon: const Icon(Icons.swap_horiz),
+                  label: Text(controller.passButtonLabel),
+                ),
+                OutlinedButton.icon(
+                  onPressed: controller.busy
+                      ? null
+                      : () => unawaited(controller.resetMatch()),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reset board'),
+                ),
+              ],
             ),
             const SizedBox(height: AppSpacing.grid2),
           ],
@@ -749,13 +761,6 @@ class _ControlColumn extends StatelessWidget {
                     : () => unawaited(controller.resignAs(ChessColor.black)),
                 icon: const Icon(Icons.flag_outlined),
                 label: const Text('Black resigns'),
-              ),
-              OutlinedButton.icon(
-                onPressed: controller.busy
-                    ? null
-                    : () => unawaited(controller.resetMatch()),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reset board'),
               ),
             ],
           ),
