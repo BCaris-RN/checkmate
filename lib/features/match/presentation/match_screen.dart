@@ -696,6 +696,18 @@ class _ControlColumn extends StatelessWidget {
           const SizedBox(height: AppSpacing.grid4),
           if (controller.isLocal) ...[
             FilledButton.icon(
+              onPressed: controller.busy
+                  ? null
+                  : () => unawaited(controller.flipBoard()),
+              icon: const Icon(Icons.flip),
+              label: Text(
+                controller.whiteAtBottom
+                    ? 'Flip to black at bottom'
+                    : 'Flip to white at bottom',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.grid2),
+            FilledButton.tonalIcon(
               onPressed: controller.busy || !controller.canPassDevice
                   ? null
                   : () => unawaited(controller.passDevice()),
@@ -712,6 +724,41 @@ class _ControlColumn extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.grid4),
           _PassReminderTile(controller: controller),
+          const SizedBox(height: AppSpacing.grid4),
+          Text('Match actions', style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: AppSpacing.grid1),
+          Text(
+            'Use these to recover from a misread board or end the game cleanly.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: AppSpacing.grid2),
+          Wrap(
+            spacing: AppSpacing.grid2,
+            runSpacing: AppSpacing.grid2,
+            children: [
+              OutlinedButton.icon(
+                onPressed: controller.busy
+                    ? null
+                    : () => unawaited(controller.resignAs(ChessColor.white)),
+                icon: const Icon(Icons.flag_outlined),
+                label: const Text('White resigns'),
+              ),
+              OutlinedButton.icon(
+                onPressed: controller.busy
+                    ? null
+                    : () => unawaited(controller.resignAs(ChessColor.black)),
+                icon: const Icon(Icons.flag_outlined),
+                label: const Text('Black resigns'),
+              ),
+              OutlinedButton.icon(
+                onPressed: controller.busy
+                    ? null
+                    : () => unawaited(controller.resetMatch()),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reset board'),
+              ),
+            ],
+          ),
           const SizedBox(height: AppSpacing.grid4),
           Text('Move export', style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: AppSpacing.grid1),
@@ -897,6 +944,20 @@ class _TimerSummaryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.grid1),
+          if (controller.isLocal) ...[
+            FilledButton.icon(
+              onPressed: controller.busy
+                  ? null
+                  : () => unawaited(controller.flipBoard()),
+              icon: const Icon(Icons.flip),
+              label: Text(
+                controller.whiteAtBottom
+                    ? 'Flip to black at bottom'
+                    : 'Flip to white at bottom',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.grid2),
+          ],
           if (controller.session.isComplete)
             Text(
               controller.session.note,
@@ -906,14 +967,6 @@ class _TimerSummaryCard extends StatelessWidget {
             Text(
               'Pass to ${controller.session.activeColor.label} to start their clock.',
               style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.grid2),
-            FilledButton.icon(
-              onPressed: controller.busy
-                  ? null
-                  : () => unawaited(controller.passDevice()),
-              icon: const Icon(Icons.swap_horiz),
-              label: Text(controller.passButtonLabel),
             ),
           ] else if (hasFiniteClock)
             Wrap(

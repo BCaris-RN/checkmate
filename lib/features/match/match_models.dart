@@ -443,6 +443,26 @@ class MatchSession {
     };
   }
 
+  MatchSession resign(ChessColor losingColor) {
+    if (isComplete) {
+      return this;
+    }
+
+    final resolvedPhase = switch (losingColor) {
+      ChessColor.white => MatchPhase.blackWon,
+      ChessColor.black => MatchPhase.whiteWon,
+    };
+
+    return MatchSession._(
+      board: board,
+      activeColor: activeColor,
+      phase: resolvedPhase,
+      moves: moves,
+      updatedAt: DateTime.now().toUtc(),
+      enPassantTarget: enPassantTarget,
+    );
+  }
+
   ChessPiece? pieceAt(ChessSquare square) {
     if (!square.isInsideBoard) {
       return null;

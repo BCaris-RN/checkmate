@@ -604,6 +604,33 @@ class MatchController extends ChangeNotifier {
     });
   }
 
+  Future<void> flipBoard() async {
+    await _runBusy(() async {
+      _whiteAtBottom = !_whiteAtBottom;
+      _notice = _whiteAtBottom
+          ? 'Board flipped. White is at the bottom.'
+          : 'Board flipped. Black is at the bottom.';
+      await _persist();
+    });
+  }
+
+  Future<void> resignAs(ChessColor losingColor) async {
+    await _runBusy(() async {
+      if (_session.isComplete) {
+        _notice = _session.note;
+        return;
+      }
+
+      _session = _session.resign(losingColor);
+      _selectedSquare = null;
+      _awaitingHandOff = false;
+      _turnStartedAtUtc = _now().toUtc();
+      final winner = losingColor.opponent;
+      _notice = '${winner.label} wins by resignation.';
+      await _persist();
+    });
+  }
+
   Future<MatchSession> _resetMatch() async {
     _session = _session.reset();
     _notice = _session.note;
