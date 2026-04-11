@@ -1,14 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/tokens/design_tokens.g.dart';
-import '../match_analytics.dart';
 import '../chess_set_themes.dart';
 import '../match_controller.dart';
 import '../match_models.dart';
@@ -22,22 +18,16 @@ class MatchScreen extends StatefulWidget {
 }
 
 class _MatchScreenState extends State<MatchScreen> {
-  late final TextEditingController _hostController;
-  late final TextEditingController _portController;
   late final TextEditingController _analyticsController;
 
   @override
   void initState() {
     super.initState();
-    _hostController = TextEditingController();
-    _portController = TextEditingController(text: '5050');
     _analyticsController = TextEditingController();
   }
 
   @override
   void dispose() {
-    _hostController.dispose();
-    _portController.dispose();
     _analyticsController.dispose();
     super.dispose();
   }
@@ -46,8 +36,6 @@ class _MatchScreenState extends State<MatchScreen> {
   Widget build(BuildContext context) {
     return Consumer<MatchController>(
       builder: (context, controller, _) {
-        final size = MediaQuery.sizeOf(context);
-        final wide = size.width >= 980;
         final analyticsValue = controller.analyticsSinkUrl ?? '';
         if (_analyticsController.text != analyticsValue) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -69,9 +57,7 @@ class _MatchScreenState extends State<MatchScreen> {
                   builder: (context, constraints) {
                     final boardExtent = math.min(
                       constraints.maxWidth,
-                      wide
-                          ? constraints.maxHeight * 0.82
-                          : constraints.maxHeight * 0.58,
+                      constraints.maxHeight * 0.90,
                     );
 
                     return Column(
@@ -111,20 +97,7 @@ class _MatchScreenState extends State<MatchScreen> {
                                 ],
                                 _PassReminderTile(controller: controller),
                                 const SizedBox(height: AppSpacing.grid2),
-                                if (wide)
-                                  _ControlColumn(
-                                    controller: controller,
-                                    hostController: _hostController,
-                                    portController: _portController,
-                                    analyticsController: _analyticsController,
-                                  )
-                                else
-                                  _ControlsDrawer(
-                                    controller: controller,
-                                    hostController: _hostController,
-                                    portController: _portController,
-                                    analyticsController: _analyticsController,
-                                  ),
+                                _ControlsDrawer(controller: controller),
                               ],
                             ),
                           ),
@@ -626,28 +599,12 @@ class _PieceBadge extends StatelessWidget {
 }
 
 class _ControlColumn extends StatelessWidget {
-  const _ControlColumn({
-    required this.controller,
-    required this.hostController,
-    required this.portController,
-    required this.analyticsController,
-  });
+  const _ControlColumn({required this.controller});
 
   final MatchController controller;
-  final TextEditingController hostController;
-  final TextEditingController portController;
-  final TextEditingController analyticsController;
 
   @override
   Widget build(BuildContext context) {
-    final theme = controller.activeTheme;
-    final isWeb = kIsWeb;
-    final localModeHint = controller.isLocal
-        ? 'This is the best GitHub Pages mode: one device, two players, no setup.'
-        : isWeb
-        ? 'Invite another tab or continue as a browser room.'
-        : 'Host a local network match or return to hot-seat play.';
-
     return Container(
       padding: const EdgeInsets.all(AppSpacing.grid4),
       decoration: BoxDecoration(
@@ -662,25 +619,14 @@ class _ControlColumn extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Game controls',
+            'Hot-seat controls',
             style: Theme.of(context).textTheme.displayMedium,
           ),
           const SizedBox(height: AppSpacing.grid1),
-          Text(localModeHint, style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: AppSpacing.grid4),
-          _QuickStartStrip(
-            title: 'Best way to play here',
-            items: const [
-              'Tap New local game',
-              'Move with highlighted squares',
-              'Pass the phone when prompted',
-            ],
-          ),
-          const SizedBox(height: AppSpacing.grid4),
           Text('Timer settings', style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: AppSpacing.grid1),
           Text(
-            'Pick the move clock you want for hot-seat play. Infinity only tracks move times.',
+            'Pick the move clock you want for hot-seat play.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.grid2),
@@ -713,205 +659,24 @@ class _ControlColumn extends StatelessWidget {
           const SizedBox(height: AppSpacing.grid2),
           _TimerSummaryCard(controller: controller),
           const SizedBox(height: AppSpacing.grid4),
-          _ActionButtonRow(
-            title: 'New local game',
-            description: 'Reset the board for one-device hot-seat play.',
-            onPressed: controller.busy ? null : controller.startLocalMatch,
-          ),
-          const SizedBox(height: AppSpacing.grid2),
-          _ActionButtonRow(
-            title: 'Host this device',
-            description: isWeb
-                ? 'Starts a browser room for a second tab as the white side.'
-                : 'Starts the local server as the white side.',
-            onPressed: controller.busy ? null : controller.hostMatch,
-          ),
-          const SizedBox(height: AppSpacing.grid2),
-          _ActionButtonRow(
-            title: 'Join host',
-            description: isWeb
-                ? 'Connect to the invite link or room code in another tab as black.'
-                : 'Connect to the host address as black.',
-            onPressed: controller.busy
-                ? null
-                : () async {
-                    try {
-                      if (isWeb) {
-                        await controller.joinHost(
-                          address: hostController.text,
-                          port: 0,
-                        );
-                      } else {
-                        final port = int.parse(portController.text.trim());
-                        await controller.joinHost(
-                          address: hostController.text,
-                          port: port,
-                        );
-                      }
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Connected.')),
-                        );
-                      }
-                    } on FormatException {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Port must be a number.'),
-                          ),
-                        );
-                      }
-                    }
-                  },
-          ),
-          const SizedBox(height: AppSpacing.grid4),
-          Text(
-            isWeb ? 'Invite link or room code' : 'Host address',
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-          const SizedBox(height: AppSpacing.grid1),
-          TextField(
-            controller: hostController,
-            textInputAction: isWeb
-                ? TextInputAction.done
-                : TextInputAction.next,
-            decoration: InputDecoration(
-              hintText: isWeb ? 'https://.../?room=ABC123' : '192.168.1.10',
+          if (controller.isLocal) ...[
+            FilledButton.icon(
+              onPressed: controller.busy || !controller.canPassDevice
+                  ? null
+                  : () => unawaited(controller.passDevice()),
+              icon: const Icon(Icons.swap_horiz),
+              label: Text(controller.passButtonLabel),
             ),
-          ),
-          if (!isWeb) ...[
             const SizedBox(height: AppSpacing.grid2),
-            Text('Port', style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(height: AppSpacing.grid1),
-            TextField(
-              controller: portController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(hintText: '5050'),
-            ),
           ],
-          const SizedBox(height: AppSpacing.grid4),
-          _CareerProgressPanel(controller: controller, theme: theme),
-          const SizedBox(height: AppSpacing.grid4),
-          _AnalyticsPanel(
-            controller: controller,
-            analyticsController: analyticsController,
-          ),
-          const SizedBox(height: AppSpacing.grid4),
-          Text('Set collection', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: AppSpacing.grid1),
           Text(
-            'Chrome starts open. Play to unlock crystal, gold, carbon fiber, and the stranger sets.',
+            controller.isLocal
+                ? 'After a move, pass the device so the next color gets the clock.'
+                : 'Hot-seat passing is available in local play.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          const SizedBox(height: AppSpacing.grid2),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final tileWidth = constraints.maxWidth >= 440
-                  ? (constraints.maxWidth - AppSpacing.grid2) / 2
-                  : constraints.maxWidth;
-
-              return Wrap(
-                spacing: AppSpacing.grid2,
-                runSpacing: AppSpacing.grid2,
-                children: controller.availableThemes
-                    .map(
-                      (availableTheme) => SizedBox(
-                        width: tileWidth,
-                        child: _ThemeTile(
-                          theme: availableTheme,
-                          selected:
-                              availableTheme.id == controller.activeTheme.id,
-                          unlocked: controller.isThemeUnlocked(availableTheme),
-                          onTap: controller.busy
-                              ? null
-                              : () => controller.selectTheme(availableTheme.id),
-                        ),
-                      ),
-                    )
-                    .toList(growable: false),
-              );
-            },
-          ),
           const SizedBox(height: AppSpacing.grid4),
-          _HostDetails(controller: controller),
-          const SizedBox(height: AppSpacing.grid4),
-          Text('Move history', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: AppSpacing.grid2),
-          if (controller.historyLines.isEmpty)
-            Text('No moves yet.', style: Theme.of(context).textTheme.bodyMedium)
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: controller.historyLines
-                  .map(
-                    (line) => Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.grid1,
-                      ),
-                      child: Text(
-                        line,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickStartStrip extends StatelessWidget {
-  const _QuickStartStrip({required this.title, required this.items});
-
-  final String title;
-  final List<String> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.grid4),
-      decoration: BoxDecoration(
-        color: AppColors.textPrimary.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(AppRadii.medium),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: AppSpacing.grid2),
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.grid1),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '•',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.accent,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.grid2),
-                  Expanded(
-                    child: Text(
-                      item,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _PassReminderTile(controller: controller),
         ],
       ),
     );
@@ -919,17 +684,9 @@ class _QuickStartStrip extends StatelessWidget {
 }
 
 class _ControlsDrawer extends StatelessWidget {
-  const _ControlsDrawer({
-    required this.controller,
-    required this.hostController,
-    required this.portController,
-    required this.analyticsController,
-  });
+  const _ControlsDrawer({required this.controller});
 
   final MatchController controller;
-  final TextEditingController hostController;
-  final TextEditingController portController;
-  final TextEditingController analyticsController;
 
   @override
   Widget build(BuildContext context) {
@@ -963,147 +720,8 @@ class _ControlsDrawer extends StatelessWidget {
             'Collapsed by default so the board stays dominant.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          children: [
-            _ControlColumn(
-              controller: controller,
-              hostController: hostController,
-              portController: portController,
-              analyticsController: analyticsController,
-            ),
-          ],
+          children: [_ControlColumn(controller: controller)],
         ),
-      ),
-    );
-  }
-}
-
-class _ActionButtonRow extends StatelessWidget {
-  const _ActionButtonRow({
-    required this.title,
-    required this.description,
-    required this.onPressed,
-  });
-
-  final String title;
-  final String description;
-  final Future<void> Function()? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.grid4),
-      decoration: BoxDecoration(
-        color: AppColors.textPrimary.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(AppRadii.medium),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.grid1),
-          Text(description, style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: AppSpacing.grid2),
-          ElevatedButton(
-            onPressed: onPressed == null ? null : () => onPressed!.call(),
-            child: Text(title),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CareerProgressPanel extends StatelessWidget {
-  const _CareerProgressPanel({required this.controller, required this.theme});
-
-  final MatchController controller;
-  final ChessSetTheme theme;
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = controller.xpIntoLevel / 8.0;
-    final board = theme.board;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.grid4),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            board.surface.first.withValues(alpha: 0.96),
-            board.surface.last.withValues(alpha: 0.92),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(AppRadii.medium),
-        border: Border.all(color: theme.accent.withValues(alpha: 0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: theme.accent.withValues(alpha: 0.10),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Career level',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-              Text(
-                theme.name,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(color: theme.accent),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.grid1),
-          Text(
-            controller.levelSummary,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.grid1),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: board.darkSquare.first.withValues(alpha: 0.24),
-              valueColor: AlwaysStoppedAnimation<Color>(theme.accent),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.grid1),
-          Text(
-            '${controller.unlockSummary} | ${controller.xpToNextLevel} XP to level ${controller.playerLevel + 1}',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.grid1),
-          Text(
-            controller.nextUnlockSummary,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: theme.accent),
-          ),
-        ],
       ),
     );
   }
@@ -1169,12 +787,20 @@ class _TimerSummaryCard extends StatelessWidget {
               controller.session.note,
               style: Theme.of(context).textTheme.bodyMedium,
             )
-          else if (controller.awaitingHandOff && controller.isLocal)
+          else if (controller.awaitingHandOff && controller.isLocal) ...[
             Text(
-              'Pass the device to start ${controller.session.activeColor.label}\'s clock.',
+              'Pass to ${controller.session.activeColor.label} to start their clock.',
               style: Theme.of(context).textTheme.bodyMedium,
-            )
-          else if (hasFiniteClock)
+            ),
+            const SizedBox(height: AppSpacing.grid2),
+            FilledButton.icon(
+              onPressed: controller.busy
+                  ? null
+                  : () => unawaited(controller.passDevice()),
+              icon: const Icon(Icons.swap_horiz),
+              label: Text(controller.passButtonLabel),
+            ),
+          ] else if (hasFiniteClock)
             Wrap(
               spacing: AppSpacing.grid2,
               runSpacing: AppSpacing.grid2,
@@ -1190,7 +816,7 @@ class _TimerSummaryCard extends StatelessWidget {
           else
             Text(
               controller.awaitingHandOff
-                  ? 'Move timing is recorded for analytics. Press Pass to start the next clock.'
+                  ? 'Press pass to hand the board to the next player.'
                   : 'Infinity keeps the clock off and only records move times.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -1223,455 +849,6 @@ class _TimePill extends StatelessWidget {
       child: Text(
         '$label $value',
         style: Theme.of(context).textTheme.labelLarge,
-      ),
-    );
-  }
-}
-
-class _AnalyticsPanel extends StatelessWidget {
-  const _AnalyticsPanel({
-    required this.controller,
-    required this.analyticsController,
-  });
-
-  final MatchController controller;
-  final TextEditingController analyticsController;
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = controller.analyticsRows.reversed
-        .take(8)
-        .toList(growable: false);
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.grid4),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(AppRadii.medium),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Analytics',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-              Text(
-                rows.isEmpty
-                    ? '0 rows'
-                    : '${controller.analyticsRows.length} rows',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: controller.activeTheme.accent,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.grid1),
-          Text(
-            'Common columns: ${matchAnalyticsHeaders.join(' | ')}',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.grid2),
-          TextField(
-            controller: analyticsController,
-            textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              labelText: 'Google Sheets link or live endpoint',
-              hintText: 'Paste a sheet URL or Apps Script web app URL',
-            ),
-            onSubmitted: (value) {
-              unawaited(controller.setAnalyticsSinkUrl(value));
-            },
-          ),
-          const SizedBox(height: AppSpacing.grid1),
-          Text(
-            'Plain sheet links are saved as references. For live writes, use a Google Apps Script web app URL attached to that sheet.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
-          ),
-          const SizedBox(height: AppSpacing.grid2),
-          Wrap(
-            spacing: AppSpacing.grid2,
-            runSpacing: AppSpacing.grid2,
-            children: [
-              ElevatedButton(
-                onPressed: controller.busy
-                    ? null
-                    : () async {
-                        await controller.setAnalyticsSinkUrl(
-                          analyticsController.text,
-                        );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Analytics link saved.'),
-                            ),
-                          );
-                        }
-                      },
-                child: const Text('Save link'),
-              ),
-              TextButton(
-                onPressed: controller.analyticsCsv.isEmpty
-                    ? null
-                    : () async {
-                        await Clipboard.setData(
-                          ClipboardData(text: controller.analyticsCsv),
-                        );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Analytics CSV copied.'),
-                            ),
-                          );
-                        }
-                      },
-                child: const Text('Copy CSV'),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.grid2),
-          Text(
-            controller.analyticsSheetLabel,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
-          ),
-          const SizedBox(height: AppSpacing.grid2),
-          if (rows.isEmpty)
-            Text(
-              'No analytics rows yet. Make a move to start logging move times.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            )
-          else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Table(
-                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                columnWidths: <int, TableColumnWidth>{
-                  for (
-                    var index = 0;
-                    index < matchAnalyticsHeaders.length;
-                    index += 1
-                  )
-                    index: const IntrinsicColumnWidth(),
-                },
-                children: [
-                  TableRow(
-                    children: matchAnalyticsHeaders
-                        .map(
-                          (header) => Padding(
-                            padding: const EdgeInsets.only(
-                              right: AppSpacing.grid2,
-                              bottom: AppSpacing.grid1,
-                            ),
-                            child: Text(
-                              header,
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(
-                                    color: controller.activeTheme.accent,
-                                  ),
-                            ),
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-                  ...rows.map(
-                    (row) => TableRow(
-                      children: matchAnalyticsHeaders
-                          .map(
-                            (header) => Padding(
-                              padding: const EdgeInsets.only(
-                                right: AppSpacing.grid2,
-                                bottom: AppSpacing.grid1,
-                              ),
-                              child: Text(
-                                _analyticsCellText(row[header]),
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ),
-                          )
-                          .toList(growable: false),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-String _analyticsCellText(Object? value) {
-  final text = value?.toString();
-  if (text == null || text.isEmpty) {
-    return '-';
-  }
-  return text;
-}
-
-class _ThemeTile extends StatelessWidget {
-  const _ThemeTile({
-    required this.theme,
-    required this.selected,
-    required this.unlocked,
-    required this.onTap,
-  });
-
-  final ChessSetTheme theme;
-  final bool selected;
-  final bool unlocked;
-  final Future<void> Function()? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final board = theme.board;
-    final canTap = onTap != null && unlocked;
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: canTap ? () => onTap!.call() : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.all(AppSpacing.grid4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadii.medium),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              board.frame.first.withValues(alpha: 0.94),
-              board.surface.first.withValues(alpha: 0.94),
-              board.surface.last.withValues(alpha: 0.90),
-            ],
-            stops: const [0.0, 0.56, 1.0],
-          ),
-          border: Border.all(
-            color: selected
-                ? theme.accent.withValues(alpha: 0.88)
-                : board.border.withValues(alpha: 0.32),
-            width: selected ? 1.8 : 1.0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: selected
-                  ? theme.accent.withValues(alpha: 0.18)
-                  : AppColors.textPrimary.withValues(alpha: 0.06),
-              blurRadius: selected ? 18 : 10,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            Opacity(
-              opacity: unlocked ? 1.0 : 0.72,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          theme.name,
-                          style: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.grid1),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.grid2,
-                          vertical: AppSpacing.grid1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.accent.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          unlocked
-                              ? (selected ? 'Selected' : 'Ready')
-                              : 'Level ${theme.unlockLevel}',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.labelSmall?.copyWith(color: theme.accent),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.grid2),
-                  Row(
-                    children: [
-                      _MiniMaterialSwatch(material: theme.whitePieces),
-                      const SizedBox(width: AppSpacing.grid2),
-                      _MiniMaterialSwatch(material: theme.blackPieces),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.grid2),
-                  Text(
-                    theme.tagline,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
-                  ),
-                ],
-              ),
-            ),
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadii.medium - 1),
-                child: IgnorePointer(
-                  child: CustomPaint(
-                    painter: _SurfacePatternPainter(
-                      pattern: board.pattern,
-                      color: board.patternColor,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            if (!unlocked)
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surface.withValues(alpha: 0.42),
-                    borderRadius: BorderRadius.circular(AppRadii.medium - 1),
-                  ),
-                  child: Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.lock_outline,
-                          size: 16,
-                          color: theme.accent.withValues(alpha: 0.78),
-                        ),
-                        const SizedBox(width: AppSpacing.grid1),
-                        Text(
-                          'Locked',
-                          style: Theme.of(context).textTheme.labelMedium
-                              ?.copyWith(color: theme.accent),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniMaterialSwatch extends StatelessWidget {
-  const _MiniMaterialSwatch({required this.material});
-
-  final ChessSurfaceMaterial material;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 48,
-      height: 18,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: material.surface,
-          ),
-          border: Border.all(color: material.border.withValues(alpha: 0.60)),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: CustomPaint(
-            painter: _SurfacePatternPainter(
-              pattern: material.pattern,
-              color: material.patternColor,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HostDetails extends StatelessWidget {
-  const _HostDetails({required this.controller});
-
-  final MatchController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final isWeb = kIsWeb;
-    final shareText = controller.hostShareText;
-    final hostText =
-        shareText ??
-        (isWeb
-            ? 'Host this device to generate a shareable browser invite.'
-            : 'Host this device to generate a shareable address.');
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.grid4),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(AppRadii.medium),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.14)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            isWeb ? 'Share this invite link' : 'Share this address',
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: AppColors.accent),
-          ),
-          const SizedBox(height: AppSpacing.grid1),
-          Text(
-            hostText,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: AppSpacing.grid2),
-          OutlinedButton(
-            onPressed: shareText != null
-                ? () async {
-                    final shareValue = controller.hostShareText;
-                    if (shareValue == null) {
-                      return;
-                    }
-                    await Clipboard.setData(ClipboardData(text: shareValue));
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            isWeb ? 'Invite link copied.' : 'Address copied.',
-                          ),
-                        ),
-                      );
-                    }
-                  }
-                : null,
-            child: Text(isWeb ? 'Copy invite link' : 'Copy address'),
-          ),
-        ],
       ),
     );
   }
