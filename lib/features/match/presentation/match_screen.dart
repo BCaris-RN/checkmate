@@ -70,24 +70,21 @@ class _MatchScreenState extends State<MatchScreen> {
                     final boardExtent = math.min(
                       constraints.maxWidth,
                       wide
-                          ? constraints.maxHeight * 0.80
-                          : constraints.maxHeight * 0.56,
+                          ? constraints.maxHeight * 0.82
+                          : constraints.maxHeight * 0.58,
                     );
 
-                    return Stack(
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          top: 0,
+                        SizedBox(
                           height: boardExtent,
                           child: _BoardCard(
                             controller: controller,
                             maxBoardExtent: boardExtent,
                           ),
                         ),
-                        Positioned.fill(
-                          top: boardExtent,
+                        Expanded(
                           child: DecoratedBox(
                             decoration: BoxDecoration(
                               color: AppColors.surface.withValues(alpha: 0.96),
@@ -108,8 +105,6 @@ class _MatchScreenState extends State<MatchScreen> {
                                 AppSpacing.grid8,
                               ),
                               children: [
-                                _BoardMetaBar(controller: controller),
-                                const SizedBox(height: AppSpacing.grid2),
                                 if (controller.notice != null) ...[
                                   _NoticeBanner(message: controller.notice!),
                                   const SizedBox(height: AppSpacing.grid2),
@@ -185,20 +180,30 @@ class _BoardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = controller.activeTheme;
-    final boardExtent = maxBoardExtent;
 
     return SizedBox(
       width: double.infinity,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final widthDrivenExtent = math.min(constraints.maxWidth, boardExtent);
+          final widthDrivenExtent = math.min(
+            constraints.maxWidth,
+            maxBoardExtent,
+          );
 
           return Align(
             alignment: Alignment.topCenter,
             child: SizedBox(
               width: widthDrivenExtent,
               height: widthDrivenExtent,
-              child: _BoardGrid(controller: controller, theme: theme),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadii.large - 2),
+                  border: Border.all(
+                    color: AppColors.textPrimary.withValues(alpha: 0.10),
+                  ),
+                ),
+                child: _BoardGrid(controller: controller, theme: theme),
+              ),
             ),
           );
         },
@@ -259,55 +264,6 @@ class _PassReminderTile extends StatelessWidget {
   }
 }
 
-class _BoardMetaBar extends StatelessWidget {
-  const _BoardMetaBar({required this.controller});
-
-  final MatchController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: AppSpacing.grid2,
-      runSpacing: AppSpacing.grid2,
-      children: [
-        _MetaPill(text: controller.turnSummary),
-        _MetaPill(text: controller.boardOrientationSummary),
-        _MetaPill(text: controller.connectionSummary),
-      ],
-    );
-  }
-}
-
-class _MetaPill extends StatelessWidget {
-  const _MetaPill({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.grid2,
-        vertical: AppSpacing.grid1,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
 class _BoardGrid extends StatelessWidget {
   const _BoardGrid({required this.controller, required this.theme});
 
@@ -327,20 +283,13 @@ class _BoardGrid extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadii.large - 2),
-        border: Border.all(color: board.border.withValues(alpha: 0.40)),
+        border: Border.all(color: board.border.withValues(alpha: 0.18)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: board.frame,
           stops: const [0.0, 0.56, 1.0],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: board.glow.withValues(alpha: 0.20),
-            blurRadius: 28,
-            offset: const Offset(0, 18),
-          ),
-        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.large - 2),
@@ -354,7 +303,7 @@ class _BoardGrid extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       SizedBox(
-                        width: 10,
+                        width: 6,
                         child: Column(
                           children: List.generate(MatchSession.rows, (
                             displayRow,
@@ -368,14 +317,17 @@ class _BoardGrid extends StatelessWidget {
                                 child: Text(
                                   '${MatchSession.rows - boardRow}',
                                   style: Theme.of(context).textTheme.labelSmall
-                                      ?.copyWith(color: AppColors.textMuted),
+                                      ?.copyWith(
+                                        color: AppColors.textMuted,
+                                        fontSize: 9,
+                                      ),
                                 ),
                               ),
                             );
                           }),
                         ),
                       ),
-                      const SizedBox(width: 2),
+                      const SizedBox(width: 0),
                       Expanded(
                         child: Column(
                           children: List.generate(MatchSession.rows, (
@@ -458,7 +410,10 @@ class _BoardGrid extends StatelessWidget {
                           child: Text(
                             String.fromCharCode(97 + boardFile),
                             style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(color: AppColors.textMuted),
+                                ?.copyWith(
+                                  color: AppColors.textMuted,
+                                  fontSize: 9,
+                                ),
                           ),
                         ),
                       );
@@ -550,21 +505,21 @@ class _BoardSquare extends StatelessWidget {
                 Center(
                   child: piece == null
                       ? Container(
-                          width: 10,
-                          height: 10,
+                          width: 8,
+                          height: 8,
                           decoration: BoxDecoration(
                             color: theme.accent.withValues(alpha: 0.72),
                             shape: BoxShape.circle,
                           ),
                         )
                       : Container(
-                          width: 28,
-                          height: 28,
+                          width: 24,
+                          height: 24,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: theme.accent.withValues(alpha: 0.58),
-                              width: 2,
+                              width: 1.5,
                             ),
                           ),
                         ),
@@ -604,7 +559,7 @@ class _PieceBadge extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = constraints.biggest.shortestSide * 0.84;
+        final size = constraints.biggest.shortestSide * 0.86;
         final shadowColor = selected
             ? theme.accent.withValues(alpha: 0.22)
             : material.shadow.withValues(alpha: 0.42);
@@ -632,50 +587,34 @@ class _PieceBadge extends StatelessWidget {
                 boxShadow: [
                   BoxShadow(
                     color: shadowColor,
-                    blurRadius: selected ? 10 : 8,
-                    offset: const Offset(0, 3),
+                    blurRadius: selected ? 6 : 4,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _SurfacePatternPainter(
-                        pattern: material.pattern,
-                        color: material.patternColor.withValues(alpha: 0.45),
+              child: Center(
+                child: Text(
+                  piece.symbol,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: size * 0.74,
+                    height: 1,
+                    color: material.symbolColor,
+                    fontWeight: FontWeight.w600,
+                    fontFamilyFallback: const <String>[
+                      'Segoe UI Symbol',
+                      'Noto Sans Symbols 2',
+                      'Apple Symbols',
+                    ],
+                    shadows: [
+                      Shadow(
+                        color: material.shadow.withValues(alpha: 0.28),
+                        blurRadius: 0.5,
+                        offset: const Offset(0, 1),
                       ),
-                    ),
+                    ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.grid1,
-                    ),
-                    child: Text(
-                      piece.symbol,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: size * 0.62,
-                        height: 1,
-                        color: material.symbolColor,
-                        fontWeight: FontWeight.w700,
-                        fontFamilyFallback: const <String>[
-                          'Segoe UI Symbol',
-                          'Noto Sans Symbols 2',
-                          'Apple Symbols',
-                        ],
-                        shadows: [
-                          Shadow(
-                            color: material.shadow.withValues(alpha: 0.40),
-                            blurRadius: 2,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

@@ -519,9 +519,15 @@ class MatchController extends ChangeNotifier {
       final moveSummary =
           '${movingPiece.color.label} moved in '
           '${formatClock(Duration(milliseconds: elapsedMilliseconds))}.';
-      _notice = _session.isComplete
-          ? '$moveSummary ${_session.note}'
-          : '$moveSummary Pass the device to ${_session.activeColor.label}.';
+      if (_session.isComplete) {
+        _notice = '$moveSummary ${_session.note}';
+      } else if (_role == MatchRole.local) {
+        _notice = _passReminderEnabled
+            ? '$moveSummary Pass the device to ${_session.activeColor.label}.'
+            : moveSummary;
+      } else {
+        _notice = moveSummary;
+      }
       notifyListeners();
       await _persist();
     });
@@ -656,7 +662,9 @@ class MatchController extends ChangeNotifier {
       _whiteAtBottom = !_whiteAtBottom;
       _awaitingHandOff = false;
       _turnStartedAtUtc = _now().toUtc();
-      _notice = '${_session.activeColor.label} can move now.';
+      _notice = _passReminderEnabled
+          ? '${_session.activeColor.label} can move now.'
+          : _session.note;
       await _persist();
     });
   }
