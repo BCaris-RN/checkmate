@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
@@ -280,34 +279,30 @@ class MatchController extends ChangeNotifier {
   }
 
   String get replayExportText {
-    final snapshots = <Map<String, Object?>>[];
-    var session = MatchSession.initial();
-    snapshots.add(session.toJson());
-    for (final moveRecord in _session.moves) {
-      session = session.playMove(
-        ChessMove(
-          from: moveRecord.from,
-          to: moveRecord.to,
-          promotion: moveRecord.promotion,
-        ),
-        elapsedMilliseconds: moveRecord.elapsedMilliseconds,
-        recordedAtUtc: moveRecord.recordedAtUtc,
-        timerPreset: moveRecord.timerPreset,
-      );
-      snapshots.add(session.toJson());
+    final buffer = StringBuffer();
+    buffer.writeln('Checkmate replay');
+    buffer.writeln('Generated ${DateTime.now().toUtc().toIso8601String()}');
+    if (_session.moves.isEmpty) {
+      buffer.writeln('No moves yet.');
+      return buffer.toString().trimRight();
     }
 
-    final payload = <String, Object?>{
-      'version': 1,
-      'title': 'Checkmate match replay',
-      'createdAtUtc': DateTime.now().toUtc().toIso8601String(),
-      'finalSession': _session.toJson(),
-      'moves': _session.moves
-          .map((move) => move.toJson())
-          .toList(growable: false),
-      'snapshots': snapshots,
-    };
-    return const JsonEncoder.withIndent('  ').convert(payload);
+    for (var index = 0; index < _session.moves.length; index += 2) {
+      final moveNumber = (index ~/ 2) + 1;
+      final whiteMove = _session.moves[index].replayToken;
+      final blackMove = index + 1 < _session.moves.length
+          ? _session.moves[index + 1].replayToken
+          : '';
+      buffer.write('$moveNumber. $whiteMove');
+      if (blackMove.isNotEmpty) {
+        buffer.write('   $blackMove');
+      }
+      if (index + 2 < _session.moves.length) {
+        buffer.writeln();
+      }
+    }
+
+    return buffer.toString().trimRight();
   }
 
   String get moveLogText {

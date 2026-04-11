@@ -21,31 +21,31 @@ extension ChessColorX on ChessColor {
 
 extension ChessPieceTypeX on ChessPieceType {
   String get label => switch (this) {
-        ChessPieceType.king => 'king',
-        ChessPieceType.queen => 'queen',
-        ChessPieceType.rook => 'rook',
-        ChessPieceType.bishop => 'bishop',
-        ChessPieceType.knight => 'knight',
-        ChessPieceType.pawn => 'pawn',
-      };
+    ChessPieceType.king => 'king',
+    ChessPieceType.queen => 'queen',
+    ChessPieceType.rook => 'rook',
+    ChessPieceType.bishop => 'bishop',
+    ChessPieceType.knight => 'knight',
+    ChessPieceType.pawn => 'pawn',
+  };
 
   String get shortLabel => switch (this) {
-        ChessPieceType.king => 'K',
-        ChessPieceType.queen => 'Q',
-        ChessPieceType.rook => 'R',
-        ChessPieceType.bishop => 'B',
-        ChessPieceType.knight => 'N',
-        ChessPieceType.pawn => 'P',
-      };
+    ChessPieceType.king => 'K',
+    ChessPieceType.queen => 'Q',
+    ChessPieceType.rook => 'R',
+    ChessPieceType.bishop => 'B',
+    ChessPieceType.knight => 'N',
+    ChessPieceType.pawn => 'P',
+  };
 
   String symbolFor(ChessColor color) => switch (this) {
-        ChessPieceType.king => color == ChessColor.white ? '♔' : '♚',
-        ChessPieceType.queen => color == ChessColor.white ? '♕' : '♛',
-        ChessPieceType.rook => color == ChessColor.white ? '♖' : '♜',
-        ChessPieceType.bishop => color == ChessColor.white ? '♗' : '♝',
-        ChessPieceType.knight => color == ChessColor.white ? '♘' : '♞',
-        ChessPieceType.pawn => color == ChessColor.white ? '♙' : '♟',
-      };
+    ChessPieceType.king => color == ChessColor.white ? '♔' : '♚',
+    ChessPieceType.queen => color == ChessColor.white ? '♕' : '♛',
+    ChessPieceType.rook => color == ChessColor.white ? '♖' : '♜',
+    ChessPieceType.bishop => color == ChessColor.white ? '♗' : '♝',
+    ChessPieceType.knight => color == ChessColor.white ? '♘' : '♞',
+    ChessPieceType.pawn => color == ChessColor.white ? '♙' : '♟',
+  };
 }
 
 class MatchRuleError implements Exception {
@@ -58,10 +58,7 @@ class MatchRuleError implements Exception {
 }
 
 class ChessSquare {
-  const ChessSquare({
-    required this.file,
-    required this.row,
-  });
+  const ChessSquare({required this.file, required this.row});
 
   final int file;
   final int row;
@@ -79,10 +76,7 @@ class ChessSquare {
   }
 
   Map<String, Object?> toJson() {
-    return <String, Object?>{
-      'file': file,
-      'row': row,
-    };
+    return <String, Object?>{'file': file, 'row': row};
   }
 
   factory ChessSquare.fromJson(Map<String, dynamic> json) {
@@ -163,11 +157,7 @@ class ChessPiece {
 }
 
 class ChessMove {
-  const ChessMove({
-    required this.from,
-    required this.to,
-    this.promotion,
-  });
+  const ChessMove({required this.from, required this.to, this.promotion});
 
   final ChessSquare from;
   final ChessSquare to;
@@ -256,6 +246,34 @@ class ChessMoveRecord {
     return buffer.toString();
   }
 
+  String toNotation() {
+    final piecePrefix = switch (piece) {
+      ChessPieceType.pawn => '',
+      ChessPieceType.knight => 'N',
+      ChessPieceType.bishop => 'B',
+      ChessPieceType.rook => 'R',
+      ChessPieceType.queen => 'Q',
+      ChessPieceType.king => 'K',
+    };
+    final capture = captured != null ? 'x' : '';
+    final promotionText = promotion == null ? '' : '=${promotion!.shortLabel}';
+    final castleText = isCastling
+        ? (to.file > from.file ? 'O-O' : 'O-O-O')
+        : '';
+    if (castleText.isNotEmpty) {
+      return castleText;
+    }
+    if (piece == ChessPieceType.pawn && captured != null) {
+      return '${from.fileLabel}x${to.notation}$promotionText';
+    }
+    return '$piecePrefix$capture${to.notation}$promotionText';
+  }
+
+  String get replayToken {
+    final promotionText = promotion == null ? '' : '=${promotion!.shortLabel}';
+    return '${from.notation}-${to.notation}$promotionText';
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'color': color.name,
@@ -338,9 +356,9 @@ class MatchSession {
       final board = rawBoard is List ? _parseBoard(rawBoard) : _startingBoard();
       final moves = rawMoves is List
           ? rawMoves
-              .whereType<Map<String, dynamic>>()
-              .map(ChessMoveRecord.fromJson)
-              .toList(growable: false)
+                .whereType<Map<String, dynamic>>()
+                .map(ChessMoveRecord.fromJson)
+                .toList(growable: false)
           : const <ChessMoveRecord>[];
 
       final rawActiveColor = json['activeColor'];
@@ -373,9 +391,8 @@ class MatchSession {
     return <String, Object?>{
       'board': board
           .map(
-            (row) => row
-                .map((piece) => piece?.toJson())
-                .toList(growable: false),
+            (row) =>
+                row.map((piece) => piece?.toJson()).toList(growable: false),
           )
           .toList(growable: false),
       'activeColor': activeColor.name,
@@ -389,10 +406,10 @@ class MatchSession {
   bool get isComplete => phase != MatchPhase.playing;
 
   ChessColor? get winner => switch (phase) {
-        MatchPhase.whiteWon => ChessColor.white,
-        MatchPhase.blackWon => ChessColor.black,
-        _ => null,
-      };
+    MatchPhase.whiteWon => ChessColor.white,
+    MatchPhase.blackWon => ChessColor.black,
+    _ => null,
+  };
 
   ChessSquare? get checkedKingSquare {
     final square = kingSquare(activeColor);
@@ -407,9 +424,10 @@ class MatchSession {
       MatchPhase.whiteWon => 'White wins by checkmate',
       MatchPhase.blackWon => 'Black wins by checkmate',
       MatchPhase.draw => 'Draw by stalemate',
-      MatchPhase.playing => isInCheck(activeColor)
-          ? '${activeColor.label} to move, in check'
-          : '${activeColor.label} to move',
+      MatchPhase.playing =>
+        isInCheck(activeColor)
+            ? '${activeColor.label} to move, in check'
+            : '${activeColor.label} to move',
     };
   }
 
@@ -418,9 +436,10 @@ class MatchSession {
       MatchPhase.whiteWon => 'Checkmate. White wins.',
       MatchPhase.blackWon => 'Checkmate. Black wins.',
       MatchPhase.draw => 'Stalemate. Game drawn.',
-      MatchPhase.playing => isInCheck(activeColor)
-          ? '${activeColor.label} is in check. Find a legal escape.'
-          : '${activeColor.label} to move. Tap a piece, then tap a highlighted square.',
+      MatchPhase.playing =>
+        isInCheck(activeColor)
+            ? '${activeColor.label} is in check. Find a legal escape.'
+            : '${activeColor.label} to move. Tap a piece, then tap a highlighted square.',
     };
   }
 
@@ -512,8 +531,7 @@ class MatchSession {
   }
 
   bool isSquareAttacked(ChessSquare square, ChessColor byColor) {
-    final pawnRow =
-        square.row + (byColor == ChessColor.white ? 1 : -1);
+    final pawnRow = square.row + (byColor == ChessColor.white ? 1 : -1);
     for (final fileDelta in <int>[-1, 1]) {
       final attackerSquare = ChessSquare(
         file: square.file + fileDelta,
@@ -589,10 +607,7 @@ class MatchSession {
         byColor,
         fileDelta: direction[0],
         rowDelta: direction[1],
-        attackers: <ChessPieceType>{
-          ChessPieceType.rook,
-          ChessPieceType.queen,
-        },
+        attackers: <ChessPieceType>{ChessPieceType.rook, ChessPieceType.queen},
       )) {
         return true;
       }
@@ -607,7 +622,7 @@ class MatchSession {
           file: square.file + fileDelta,
           row: square.row + rowDelta,
         );
-      if (!_isInsideSquare(attackerSquare)) {
+        if (!_isInsideSquare(attackerSquare)) {
           continue;
         }
         final attacker = pieceAt(attackerSquare);
@@ -693,7 +708,8 @@ class MatchSession {
     nextBoard[move.from.row][move.from.file] = null;
 
     var placedPiece = movingPiece.copyWith(hasMoved: true);
-    final isPawnPromotionRank = movingPiece.type == ChessPieceType.pawn &&
+    final isPawnPromotionRank =
+        movingPiece.type == ChessPieceType.pawn &&
         _isPromotionRank(move.to, movingPiece.color);
     final promotionType = isPawnPromotionRank
         ? (move.promotion ?? ChessPieceType.queen)
@@ -719,7 +735,9 @@ class MatchSession {
         if (enPassantPiece == null ||
             enPassantPiece.color == movingPiece.color ||
             enPassantPiece.type != ChessPieceType.pawn) {
-          throw const MatchRuleError('That en passant capture is not available.');
+          throw const MatchRuleError(
+            'That en passant capture is not available.',
+          );
         }
         capturedPiece = enPassantPiece;
         nextBoard[captureSquare.row][captureSquare.file] = null;
@@ -795,40 +813,28 @@ class MatchSession {
     return switch (piece.type) {
       ChessPieceType.pawn => _pawnMoves(square, piece),
       ChessPieceType.knight => _knightMoves(square, piece),
-      ChessPieceType.bishop => _slidingMoves(
-          square,
-          piece,
-          <List<int>>[
-            <int>[-1, -1],
-            <int>[-1, 1],
-            <int>[1, -1],
-            <int>[1, 1],
-          ],
-        ),
-      ChessPieceType.rook => _slidingMoves(
-          square,
-          piece,
-          <List<int>>[
-            <int>[-1, 0],
-            <int>[1, 0],
-            <int>[0, -1],
-            <int>[0, 1],
-          ],
-        ),
-      ChessPieceType.queen => _slidingMoves(
-          square,
-          piece,
-          <List<int>>[
-            <int>[-1, -1],
-            <int>[-1, 1],
-            <int>[1, -1],
-            <int>[1, 1],
-            <int>[-1, 0],
-            <int>[1, 0],
-            <int>[0, -1],
-            <int>[0, 1],
-          ],
-        ),
+      ChessPieceType.bishop => _slidingMoves(square, piece, <List<int>>[
+        <int>[-1, -1],
+        <int>[-1, 1],
+        <int>[1, -1],
+        <int>[1, 1],
+      ]),
+      ChessPieceType.rook => _slidingMoves(square, piece, <List<int>>[
+        <int>[-1, 0],
+        <int>[1, 0],
+        <int>[0, -1],
+        <int>[0, 1],
+      ]),
+      ChessPieceType.queen => _slidingMoves(square, piece, <List<int>>[
+        <int>[-1, -1],
+        <int>[-1, 1],
+        <int>[1, -1],
+        <int>[1, 1],
+        <int>[-1, 0],
+        <int>[1, 0],
+        <int>[0, -1],
+        <int>[0, 1],
+      ]),
       ChessPieceType.king => _kingMoves(square, piece),
     };
   }
@@ -845,9 +851,7 @@ class MatchSession {
         ChessMove(
           from: square,
           to: oneStep,
-          promotion: oneStep.row == promotionRow
-              ? ChessPieceType.queen
-              : null,
+          promotion: oneStep.row == promotionRow ? ChessPieceType.queen : null,
         ),
       );
 
@@ -879,10 +883,9 @@ class MatchSession {
       }
 
       if (enPassantTarget == captureSquare) {
-        final adjacent = pieceAt(ChessSquare(
-          file: captureSquare.file,
-          row: square.row,
-        ));
+        final adjacent = pieceAt(
+          ChessSquare(file: captureSquare.file, row: square.row),
+        );
         if (adjacent != null &&
             adjacent.color != piece.color &&
             adjacent.type == ChessPieceType.pawn) {
@@ -979,7 +982,8 @@ class MatchSession {
         ChessSquare(file: 3, row: homeRow),
       ].every((target) => pieceAt(target) == null);
 
-      final kingsideSafe = kingsideClear &&
+      final kingsideSafe =
+          kingsideClear &&
           !isSquareAttacked(
             ChessSquare(file: 5, row: homeRow),
             piece.color.opponent,
@@ -988,7 +992,8 @@ class MatchSession {
             ChessSquare(file: 6, row: homeRow),
             piece.color.opponent,
           );
-      final queensideSafe = queensideClear &&
+      final queensideSafe =
+          queensideClear &&
           !isSquareAttacked(
             ChessSquare(file: 3, row: homeRow),
             piece.color.opponent,
@@ -1054,10 +1059,7 @@ class MatchSession {
         (color == ChessColor.black && square.row == 7);
   }
 
-  bool _isInside({
-    int? file,
-    int? row,
-  }) {
+  bool _isInside({int? file, int? row}) {
     final resolvedFile = file;
     final resolvedRow = row;
     return resolvedFile != null &&
