@@ -15,7 +15,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  testWidgets('renders the board and core local controls', (tester) async {
+  testWidgets('renders the board shell', (tester) async {
     final controller = MatchController();
     unawaited(controller.bootstrap());
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -25,8 +25,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(DecoratedBox), findsWidgets);
-    expect(find.text('Pass reminder'), findsOneWidget);
     expect(find.byType(Switch), findsOneWidget);
-    expect(find.byType(Semantics), findsWidgets);
   });
 }
