@@ -1,4 +1,4 @@
-package com.example.checkmate_by_caris
+package com.carisindustries.checkmate
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -33,6 +33,7 @@ SUPPORTED_EXTENSIONS = {
 
 IGNORE_DIR_NAMES = {
     ".git",
+    ".dart_tool",
     "node_modules",
     "dist",
     "build",

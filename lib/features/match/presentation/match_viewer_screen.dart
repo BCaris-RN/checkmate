@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/tokens/design_tokens.g.dart';
@@ -44,15 +44,17 @@ class _MatchViewerScreenState extends State<MatchViewerScreen> {
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['txt', 'json'],
-      withData: true,
+    const replayFiles = XTypeGroup(
+      label: 'Replay files',
+      extensions: <String>['txt', 'json'],
     );
-    final bytes = result?.files.single.bytes;
-    if (bytes == null) {
+    final file = await openFile(
+      acceptedTypeGroups: const <XTypeGroup>[replayFiles],
+    );
+    if (file == null) {
       return;
     }
+    final bytes = await file.readAsBytes();
     final text = utf8.decode(bytes);
     try {
       _setDocument(MatchReplayDocument.parse(text));
@@ -425,11 +427,6 @@ ChessMove _replayTokenToMove(MatchSession session, String token) {
     _ => null,
   };
 
-  final parts = body.split('-');
-  if (parts.length != 2) {
-    throw FormatException('Unsupported move token: $token');
-  }
-
   if (body == 'O-O' || body == 'O-O-O') {
     final kingSquare = session.activeColor == ChessColor.white
         ? const ChessSquare(file: 4, row: 7)
@@ -442,6 +439,11 @@ ChessMove _replayTokenToMove(MatchSession session, String token) {
               ? const ChessSquare(file: 2, row: 7)
               : const ChessSquare(file: 2, row: 0));
     return ChessMove(from: kingSquare, to: target);
+  }
+
+  final parts = body.split('-');
+  if (parts.length != 2) {
+    throw FormatException('Unsupported move token: $token');
   }
 
   final from = _squareFromNotation(parts[0]);
@@ -518,7 +520,7 @@ class _ReplayBoard extends StatelessWidget {
                 child: Text(
                   piece?.symbol ?? '',
                   style: TextStyle(
-                    fontSize: 30,
+                    fontSize: AppTypography.displayMD,
                     color: piece?.color == ChessColor.white
                         ? Colors.white
                         : Colors.black,

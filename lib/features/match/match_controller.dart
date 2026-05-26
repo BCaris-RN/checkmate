@@ -566,7 +566,7 @@ class MatchController extends ChangeNotifier {
         recordedAtUtc: now,
         timerPreset: _clockPreset,
       );
-      _awaitingHandOff = !_session.isComplete;
+      _awaitingHandOff = _role == MatchRole.local && !_session.isComplete;
       final moveSummary =
           '${movingPiece.color.label} moved in '
           '${formatClock(Duration(milliseconds: elapsedMilliseconds))}.';
@@ -665,6 +665,10 @@ class MatchController extends ChangeNotifier {
         movingColor: movingPiece.color,
         resultingSession: _session,
       );
+    }
+    if (_role != MatchRole.local) {
+      _awaitingHandOff = false;
+      _turnStartedAtUtc = recordedAtUtc?.toUtc() ?? _now().toUtc();
     }
     _selectedSquare = null;
     await _persist();

@@ -331,7 +331,7 @@ class _BoardGrid extends StatelessWidget {
                                   style: Theme.of(context).textTheme.labelSmall
                                       ?.copyWith(
                                         color: board.border,
-                                        fontSize: 9,
+                                        fontSize: AppTypography.labelMD,
                                       ),
                                 ),
                               ),
@@ -422,7 +422,10 @@ class _BoardGrid extends StatelessWidget {
                           child: Text(
                             String.fromCharCode(97 + boardFile),
                             style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(color: board.border, fontSize: 9),
+                                ?.copyWith(
+                                  color: board.border,
+                                  fontSize: AppTypography.labelMD,
+                                ),
                           ),
                         ),
                       );

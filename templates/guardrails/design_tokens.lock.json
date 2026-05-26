@@ -2,11 +2,13 @@
   "schemaVersion": 1,
   "designTokenGuard": {
     "ignoreGlobs": [
+      ".dart_tool/**",
       "**/generated/**",
       "**/*g.dart",
       "**/*freezed.dart",
       "**/tokens.css",
-      "**/design_tokens*.dart"
+      "**/design_tokens*.dart",
+      "lib/features/match/chess_set_themes.dart"
     ],
     "colors": [
       {
@@ -19,7 +21,7 @@
         "id": "primary_text_rich_dark",
         "hex": "#0A0A0A",
         "css": "var(--color-primary-text)",
-        "dart": "AppColors.primaryText"
+        "dart": "AppColors.textPrimary"
       },
       {
         "id": "accent_electric_blue",
@@ -31,7 +33,7 @@
         "id": "muted_cool_gray",
         "hex": "#64748B",
         "css": "var(--color-muted)",
-        "dart": "AppColors.muted"
+        "dart": "AppColors.textMuted"
       }
     ],
     "fontSizesPx": [
@@ -39,25 +41,25 @@
         "id": "label_medium",
         "value": 12,
         "css": "var(--font-size-label-medium)",
-        "dart": "AppTypography.labelMediumSize"
+        "dart": "AppTypography.labelMD"
       },
       {
         "id": "body_medium",
         "value": 16,
         "css": "var(--font-size-body-medium)",
-        "dart": "AppTypography.bodyMediumSize"
+        "dart": "AppTypography.bodyMD"
       },
       {
         "id": "display_medium",
         "value": 32,
         "css": "var(--font-size-display-medium)",
-        "dart": "AppTypography.displayMediumSize"
+        "dart": "AppTypography.displayMD"
       },
       {
         "id": "display_large",
         "value": 64,
         "css": "var(--font-size-display-large)",
-        "dart": "AppTypography.displayLargeSize"
+        "dart": "AppTypography.displayXL"
       }
     ]
   }

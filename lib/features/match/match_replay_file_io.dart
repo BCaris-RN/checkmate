@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 Future<String> saveMatchReplayText({
@@ -7,7 +8,7 @@ Future<String> saveMatchReplayText({
   required String contents,
 }) async {
   final directory = await getApplicationDocumentsDirectory();
-  final file = File('${directory.path}\\$fileName');
+  final file = File(path.join(directory.path, fileName));
   await file.writeAsString(contents);
   return file.path;
 }

@@ -29,13 +29,12 @@ class FakeMatchStorage extends MatchStorage {
 }
 
 class FakeMatchTransport extends LocalMatchTransport {
-  FakeMatchTransport({
-    required this.launchResult,
-    MatchSession? fetchedSession,
-  }) : fetchedSession = fetchedSession ?? MatchSession.initial();
+  FakeMatchTransport({required this.launchResult, MatchSession? fetchedSession})
+    : fetchedSession = fetchedSession ?? MatchSession.initial();
 
   final HostLaunchResult launchResult;
   MatchSession fetchedSession;
+  Future<MatchSession> Function(ChessMove move)? applyMoveHandler;
   int stopCount = 0;
   int startHostCount = 0;
   int fetchStateCount = 0;
@@ -50,6 +49,7 @@ class FakeMatchTransport extends LocalMatchTransport {
     int preferredPort = 0,
   }) async {
     startHostCount += 1;
+    applyMoveHandler = applyMove;
     return launchResult;
   }
 
@@ -89,10 +89,7 @@ void main() {
         lanAddress: '192.168.1.10',
       ),
     );
-    final controller = MatchController(
-      storage: storage,
-      transport: transport,
-    );
+    final controller = MatchController(storage: storage, transport: transport);
 
     await controller.hostMatch();
     await controller.startLocalMatch();
@@ -118,16 +115,10 @@ void main() {
       ),
       fetchedSession: MatchSession.initial(),
     );
-    final controller = MatchController(
-      storage: storage,
-      transport: transport,
-    );
+    final controller = MatchController(storage: storage, transport: transport);
 
     await controller.hostMatch();
-    await controller.joinHost(
-      address: '10.0.0.2',
-      port: 6060,
-    );
+    await controller.joinHost(address: '10.0.0.2', port: 6060);
 
     expect(controller.isJoined, isTrue);
     expect(controller.hostAddress, isNull);
@@ -150,10 +141,7 @@ void main() {
         lanAddress: '192.168.1.10',
       ),
     );
-    final controller = MatchController(
-      storage: storage,
-      transport: transport,
-    );
+    final controller = MatchController(storage: storage, transport: transport);
 
     await controller.bootstrap();
     await controller.tapSquare(4, 6);
@@ -189,10 +177,7 @@ void main() {
         lanAddress: '192.168.1.10',
       ),
     );
-    final controller = MatchController(
-      storage: storage,
-      transport: transport,
-    );
+    final controller = MatchController(storage: storage, transport: transport);
 
     await controller.startLocalMatch();
 
@@ -284,6 +269,58 @@ void main() {
     expect(storage.savedState?.awaitingHandOff, isFalse);
   });
 
+  test('hosted match does not inherit local pass handoff', () async {
+    final storage = FakeMatchStorage();
+    final transport = FakeMatchTransport(
+      launchResult: HostLaunchResult(
+        uri: Uri.parse('http://192.168.1.10:5050'),
+        port: 5050,
+        lanAddress: '192.168.1.10',
+      ),
+    );
+    var now = DateTime.utc(2026, 1, 1, 12, 0, 0);
+    final controller = MatchController(
+      storage: storage,
+      transport: transport,
+      now: () => now,
+    );
+
+    await controller.hostMatch();
+    now = DateTime.utc(2026, 1, 1, 12, 0, 10);
+    await controller.playMove(
+      ChessMove(
+        from: const ChessSquare(file: 4, row: 6),
+        to: const ChessSquare(file: 4, row: 4),
+      ),
+    );
+
+    expect(controller.awaitingHandOff, isFalse);
+    expect(controller.canLocalMove, isFalse);
+    expect(storage.savedState?.awaitingHandOff, isFalse);
+
+    now = DateTime.utc(2026, 1, 1, 12, 0, 20);
+    await transport.applyMoveHandler!(
+      ChessMove(
+        from: const ChessSquare(file: 4, row: 1),
+        to: const ChessSquare(file: 4, row: 3),
+      ),
+    );
+
+    expect(controller.awaitingHandOff, isFalse);
+    expect(controller.canLocalMove, isTrue);
+
+    now = DateTime.utc(2026, 1, 1, 12, 0, 25);
+    await controller.playMove(
+      ChessMove(
+        from: const ChessSquare(file: 6, row: 7),
+        to: const ChessSquare(file: 5, row: 5),
+      ),
+    );
+
+    expect(controller.awaitingHandOff, isFalse);
+    expect(controller.session.moves.last.elapsedMilliseconds, 5000);
+  });
+
   test('timer presets and analytics rows persist with match play', () async {
     final storage = FakeMatchStorage();
     final transport = FakeMatchTransport(
@@ -307,7 +344,10 @@ void main() {
     expect(storage.savedState?.clockPreset, MatchTimerPreset.fifteenMinutes);
     expect(controller.analyticsRows.length, 1);
     expect(controller.analyticsRows.first['Move #'], 1);
-    expect(controller.analyticsRows.first['Clock'], MatchTimerPreset.fifteenMinutes.label);
+    expect(
+      controller.analyticsRows.first['Clock'],
+      MatchTimerPreset.fifteenMinutes.label,
+    );
     expect(controller.analyticsCsv, contains('Move #'));
     expect(controller.analyticsCsv, contains('Move time'));
   });

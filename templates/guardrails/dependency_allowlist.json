@@ -22,6 +22,7 @@
       "process_run",
       "provider",
       "shared_preferences",
+      "url_launcher",
       "yaml",
       "yaml_edit"
     ],
