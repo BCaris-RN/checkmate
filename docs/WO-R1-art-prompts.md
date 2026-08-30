@@ -107,6 +107,68 @@ assumed: dark navy and near-black.
 
 ---
 
+
+## Board and UI token targets
+
+These values are the target palette for WO-R2. They intentionally mirror the
+existing `ChessSetCatalog` IDs, so implementation can widen the current theme
+objects instead of adding a parallel theme registry.
+
+| Theme | ID | Light square | Dark square | Frame | Border | Accent | Check glow | Legal dot | Last move |
+|---|---|---|---|---|---|---|---|---|---|
+| Chrome Vanguard | `chrome` | `#FDFEFE` / `#E9EEF2` | `#D8E1E9` / `#C2CDD7` | `#CCD6DE` / `#59626B` | `#75818D` | `#89B6E8` | `#87B7FF` at 40% | `#182029` at 32% | `#89B6E8` at 34% |
+| Crystal Vault | `crystal` | `#F9FFFF` / `#DDF4FB` | `#CDEAF2` / `#AED3E1` | `#8CE7F6` / `#355B7A` | `#63A8C7` | `#7FE3F2` | `#92F2FF` at 46% | `#102238` at 30% | `#7FE3F2` at 32% |
+| Gilded Court | `gold` | `#FFF7E8` / `#F6E3B7` | `#E9C97C` / `#C99234` | `#F0D36A` / `#805317` | `#9F7125` | `#E3C15A` | `#F6D57A` at 40% | `#4B3516` at 32% | `#E3C15A` at 34% |
+| Carbon Night | `carbon` | `#293239` / `#20262C` | `#12171C` / `#090C10` | `#52606A` / `#0E1318` | `#2D3740` | `#5BD3FF` | `#48C8FF` at 40% | `#E8F4FB` at 30% | `#5BD3FF` at 34% |
+| Obsidian Relic | `obsidian` | `#31293C` / `#221B2A` | `#120F18` / `#08070D` | `#7850B4` / `#12101A` | `#563D7A` | `#AC86FF` | `#7E55FF` at 40% | `#F6F0FF` at 30% | `#AC86FF` at 34% |
+| Aurora Myth | `aurora` | `#17253A` / `#101A2A` | `#090E18` / `#04070B` | `#55F2D9` / `#101B31` | `#356A88` | `#55F2D9` | `#55F2D9` at 40% | `#EAFBFF` at 30% | `#55F2D9` at 34% |
+
+Piece colour targets:
+
+| Theme | Light piece body | Light outline | Dark piece body | Dark outline |
+|---|---|---|---|---|
+| Chrome Vanguard | `#FFFFFF`, `#E7EDF2`, `#BCC7D3` | `#9FADBB` | `#505A64`, `#25303A`, `#11161B` | `#85929E` |
+| Crystal Vault | `#FFFFFF`, `#F4FBFF`, `#CFEAFF` | `#88D7F2` | `#31465A`, `#0F1B26`, `#050A10` | `#78C3E8` |
+| Gilded Court | `#FFF4C9`, `#F1D690`, `#C9962C` | `#BC8B2A` | `#483716`, `#22160B`, `#090603` | `#9E7330` |
+| Carbon Night | `#F4F8FB`, `#D1DADF`, `#8E9AA4` | `#626D76` | `#262D33`, `#11161B`, `#06080B` | `#404A53` |
+| Obsidian Relic | `#F7F4FF`, `#DDD5F8`, `#B8ADEF` | `#9B8DE1` | `#22172D`, `#0B0912`, `#020205` | `#5A4D8B` |
+| Aurora Myth | `#F5FCFF`, `#D9EEFF`, `#AFD7FF` | `#84C8FF` | `#161C28`, `#0A1018`, `#020408` | `#2C6F8E` |
+
+---
+
+## Asset manifest
+
+Each completed theme folder must contain exactly these files:
+
+```text
+light_king.png
+light_queen.png
+light_rook.png
+light_bishop.png
+light_knight.png
+light_pawn.png
+dark_king.png
+dark_queen.png
+dark_rook.png
+dark_bishop.png
+dark_knight.png
+dark_pawn.png
+```
+
+Required source and export properties:
+
+- 512x512 PNG export, transparent background.
+- Piece centred on the canvas with 28-40 px transparent margin.
+- No embedded board square, shadow plane, label, watermark, or signature.
+- Use premultiplied alpha safely: no white halo on dark squares and no dark fringe on light squares.
+- Preserve a source prompt note beside generated assets before accepting them. Suggested path: `assets/pieces/<theme_slug>/PROMPT_NOTES.md`.
+
+Do not commit partial files inside a theme folder unless the loader fallback has
+already been implemented. Before the fallback exists, a theme folder is either
+complete or absent.
+
+---
+
 ## Naming and delivery
 
 ```
@@ -137,8 +199,54 @@ Before adding a set to the repo, shrink all 12 to 44px, place them on both squar
 
 Any no means regenerate that piece. This test is the whole point — a set that fails it is worse than the glyphs it replaces.
 
+
+Required visual QA sheet per theme:
+
+- One 8x8 board preview using the theme board colours with all 12 pieces shown on both light and dark squares.
+- One greyscale version of the same sheet.
+- One 44px contact sheet showing every piece at actual target size.
+
+Suggested generated QA paths:
+
+```text
+assets/pieces/<theme_slug>/qa_board.png
+assets/pieces/<theme_slug>/qa_board_greyscale.png
+assets/pieces/<theme_slug>/qa_44px_contact_sheet.png
+```
+
+Do not ship a theme until those three QA images pass human review.
+
 ---
 
 ## Priority
 
 Generate **Carbon Night** first. It is the strictest test: no specular, no texture, no colour tricks — pure silhouette and value. If a set works there, the shape language is sound and the other five are surface treatments over a proven base. If it fails there, the problem is the shapes, and every other theme would have inherited it.
+
+
+After Carbon Night passes:
+
+1. Chrome Vanguard - closest to the current default and lowest visual risk.
+2. Gilded Court - proves warm palette contrast.
+3. Crystal Vault - proves transparency discipline.
+4. Obsidian Relic - proves textured dark-on-dark contrast.
+5. Aurora Myth - highest glow risk, last.
+
+---
+
+## R1 handoff block
+
+When art production finishes for any theme, return this block:
+
+```text
+Status:
+Theme:
+Assets:
+QA files:
+Palette deviations:
+44px failures fixed:
+Remaining risk:
+Next:
+```
+
+`Palette deviations`, `44px failures fixed`, and `Remaining risk` are mandatory.
+Use `none` only when that is true.

@@ -26,6 +26,11 @@ Every value below is a starting point tuned for a phone held at arm's length and
 | Checkmate | 800ms | `easeOutCubic` | see below |
 | Board flip | 550ms | `easeInOutCubic` | see below — this is the signature |
 
+All durations below are visual durations. State changes still come from
+`MatchController` and `MatchSession`; animation code observes state transitions
+and renders between old and new board positions. Do not move rule logic into
+widgets to make an animation easier.
+
 ### Distance scaling for glide
 
 A queen crossing seven ranks should not take seven times a pawn's step. Scale sub-linearly:
@@ -48,6 +53,13 @@ t=D-40  captured piece begins scale-down and fade
 t=D     capturing piece lands, settle begins
 t=D+100 captured piece fully gone
 ```
+
+Implementation contract:
+
+- Keep the captured sprite visible from the pre-move board snapshot until its exit animation finishes.
+- Remove it from hit testing immediately after the legal move is accepted.
+- If the capturing move is en passant, animate the pawn from the actual captured square, not from the destination square.
+- If animation is disabled, apply the final board immediately and skip the retained captured sprite.
 
 ---
 
@@ -76,6 +88,15 @@ Coordinate labels cross-fade at the midpoint rather than rotating — rotating t
 
 Add a **light haptic at phase 3 onset**. On mobile that single vibration does more for perceived quality than any visual polish in this document, and it costs one line.
 
+Implementation contract:
+
+- `MatchController.flipBoard()` remains the source of truth for orientation.
+- The presentation layer owns only the transition between the previous and next orientation.
+- Use the board centre as the transform origin.
+- Counter-rotate each piece during the last 80ms of phase 2 so symbols and art finish upright.
+- Cross-fade ranks/files at 50% progress. Never rotate text labels.
+- Haptic call is best-effort on mobile only; failure must not block the flip.
+
 ---
 
 ## Check and checkmate
@@ -92,6 +113,13 @@ Add a **light haptic at phase 3 onset**. On mobile that single vibration does mo
 
 The topple is worth building. It's the one moment in a chess app where a small flourish is unambiguously correct.
 
+Implementation contract:
+
+- Check state is visual only and must not block user interaction except during the exact move resolution frame.
+- Checkmate may block interaction after the final legal move because the game is over.
+- The result banner appears after the losing king topple begins, not before.
+- No full-screen modal during the first 800ms; let the board show the outcome.
+
 ---
 
 ## Illegal move
@@ -99,6 +127,72 @@ The topple is worth building. It's the one moment in a chess app where a small f
 Shake the *piece*, never the board. Board shake implies the game broke; piece shake says "not that square."
 
 3 oscillations, ±6px horizontal, 280ms, amplitude decaying. Pair it with a brief red tint on the attempted destination square. No sound — this fires often enough that a sound becomes an irritant fast.
+
+Implementation contract:
+
+- Illegal move animation is driven by the attempted source piece and destination square, not by a changed board state.
+- The piece returns to its original square; do not create a temporary legal move state.
+- The destination tint clears even if the user taps again during the animation.
+- Repeated illegal taps restart the same piece animation cleanly.
+
+---
+
+## Move animation state model
+
+Add a small presentation-only model rather than scattering animation facts through square widgets.
+
+Suggested fields:
+
+```text
+from: BoardSquare
+to: BoardSquare
+piece: ChessPiece
+capturedPiece: ChessPiece?
+capturedSquare: BoardSquare?
+isCastle: bool
+rookFrom: BoardSquare?
+rookTo: BoardSquare?
+isPromotion: bool
+duration: Duration
+startedAt: DateTime
+```
+
+Expected behaviour:
+
+- Take a pre-move board snapshot before accepting or rendering the new state.
+- Render moving pieces in an overlay above a static board grid.
+- Hide the source square's normal piece while that piece is in the overlay.
+- Hide the destination square's final piece until the glide completes.
+- Animate castling as king and rook movement, coordinated on the same timeline.
+- For promotion, glide the pawn first; swap to the promoted piece at settle.
+- Do not animate replay import, storage restore, or initial load. Those are state hydration, not player actions.
+
+---
+
+## Refactor target shape
+
+The animation layer should land after the monolith split, roughly:
+
+```text
+lib/features/match/presentation/
+  match_screen.dart
+  board/
+    match_board.dart
+    board_grid.dart
+    board_square.dart
+    board_coordinates.dart
+    piece_sprite.dart
+    piece_asset_resolver.dart
+    move_animation_layer.dart
+    board_flip_transition.dart
+  controls/
+    turn_banner.dart
+    match_action_bar.dart
+    timer_controls.dart
+    theme_picker.dart
+```
+
+Names can change if the existing code points somewhere cleaner, but keep the same ownership split: board rendering, controls, and composition.
 
 ---
 
@@ -108,9 +202,28 @@ Shake the *piece*, never the board. Board shake implies the game broke; piece sh
 
 Consider a settings toggle beyond the OS flag. Some people simply want the board to snap.
 
+Reduced-motion exact behaviour:
+
+| Event | Reduced-motion result |
+|---|---|
+| Piece move | final square appears immediately |
+| Capture | captured piece disappears immediately |
+| Illegal move | no shake; destination tint may flash for 80ms maximum |
+| Check | static alert border only |
+| Checkmate | result banner appears immediately |
+| Board flip | orientation changes immediately; no rotation or haptic |
+
 **Performance floor:** 60fps on a mid-range Android device. The glide animates one piece; the board should not rebuild. If profiling shows full-board rebuilds per frame, the widget tree is wrong — fix the tree rather than shortening the animation.
 
 `RepaintBoundary` around the board grid. Squares are static between moves and should not repaint when a piece moves over them.
+
+Implementation checks:
+
+- Use `AnimatedBuilder`, `SlideTransition`, `Transform`, or equivalent targeted rebuilds around the moving layer.
+- Avoid rebuilding all 64 squares per animation tick.
+- Keep board squares and coordinate labels in a `RepaintBoundary`.
+- Keep piece art cacheable through `Image.asset`; do not decode PNGs manually in build methods.
+- Use keys based on square and piece identity only where they stabilize animation; avoid keys that force remounting the whole board.
 
 ---
 
@@ -135,3 +248,40 @@ Play a full game on a real phone, passing it back and forth, before signing off.
 7. With `disableAnimations` on, is everything instant?
 
 Question 2 is the one that matters. It's the only one chess.com can't answer.
+
+
+Automated and local checks before handoff:
+
+```text
+flutter analyze
+flutter test
+python scripts/design_token_guard.py --root .
+```
+
+Manual checks before handoff:
+
+- One normal move.
+- One capture.
+- One castle.
+- One promotion.
+- One illegal move.
+- One check.
+- One checkmate.
+- One board flip with animations enabled.
+- One board flip with reduced motion enabled.
+
+---
+
+## R2 return block for motion work
+
+```text
+Status:
+Changed:
+Tests:
+Manual QA:
+Deviations:
+Untested:
+Next:
+```
+
+`Deviations` and `Untested` are mandatory. Blank values are not acceptable.
