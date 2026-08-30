@@ -44,6 +44,9 @@ NON-NEGOTIABLE RULES
    Verify by desaturating to greyscale.
 8. Both sets must hold contrast against both a light square and a dark
    square. State which square colours you assumed.
+9. Do not render a board square, tile, pedestal, label, or frame inside the
+   piece asset. The app already renders the chess board. Piece files are
+   transparent sprites only.
 
 DELIVER
 - 12 images
@@ -160,6 +163,8 @@ Required source and export properties:
 - 512x512 PNG export, transparent background.
 - Piece centred on the canvas with 28-40 px transparent margin.
 - No embedded board square, shadow plane, label, watermark, or signature.
+- Keep the 2.5D/soft 3D piece treatment, but the only opaque subject in the
+  file is the piece itself.
 - Use premultiplied alpha safely: no white halo on dark squares and no dark fringe on light squares.
 - Preserve a source prompt note beside generated assets before accepting them. Suggested path: `assets/pieces/<theme_slug>/PROMPT_NOTES.md`.
 
@@ -205,6 +210,8 @@ Required visual QA sheet per theme:
 - One 8x8 board preview using the theme board colours with all 12 pieces shown on both light and dark squares.
 - One greyscale version of the same sheet.
 - One 44px contact sheet showing every piece at actual target size.
+- QA sheets may include board squares because they are previews. The actual
+  `light_*.png` and `dark_*.png` piece assets must not.
 
 Suggested generated QA paths:
 

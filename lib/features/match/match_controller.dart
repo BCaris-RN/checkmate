@@ -244,6 +244,8 @@ class MatchController extends ChangeNotifier {
 
   String get turnSummary => _session.statusLabel;
 
+  int? get loneKingMovesRemaining => _session.loneKingMovesRemaining;
+
   bool get canLocalMove {
     if (_session.isComplete) {
       return false;
@@ -525,6 +527,21 @@ class MatchController extends ChangeNotifier {
       _selectedSquare = null;
       notifyListeners();
     }
+  }
+
+  List<ChessMove> promotionMovesForSelectedTarget(ChessSquare to) {
+    final selected = _selectedSquare;
+    if (selected == null) {
+      return const <ChessMove>[];
+    }
+    final moves = _session
+        .legalMovesFrom(selected)
+        .where((move) => move.to == to && move.promotion != null)
+        .toList(growable: false);
+    if (moves.length <= 1) {
+      return const <ChessMove>[];
+    }
+    return moves;
   }
 
   Future<void> playMove(ChessMove move) async {

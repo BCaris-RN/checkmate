@@ -8,6 +8,13 @@ enum ChessColor { white, black }
 
 enum ChessPieceType { king, queen, rook, bishop, knight, pawn }
 
+const List<ChessPieceType> promotionPieceTypes = <ChessPieceType>[
+  ChessPieceType.queen,
+  ChessPieceType.rook,
+  ChessPieceType.bishop,
+  ChessPieceType.knight,
+];
+
 extension ChessColorX on ChessColor {
   ChessColor get opponent =>
       this == ChessColor.white ? ChessColor.black : ChessColor.white;
@@ -326,10 +333,12 @@ class MatchSession {
     required this.moves,
     required this.updatedAt,
     required this.enPassantTarget,
+    required this.loneKingPlyCount,
   }) : board = _freezeBoard(board);
 
   static const int columns = 8;
   static const int rows = 8;
+  static const int loneKingPlyLimit = 42;
 
   final List<List<ChessPiece?>> board;
   final ChessColor activeColor;
@@ -337,6 +346,7 @@ class MatchSession {
   final List<ChessMoveRecord> moves;
   final DateTime updatedAt;
   final ChessSquare? enPassantTarget;
+  final int loneKingPlyCount;
 
   factory MatchSession.initial() {
     return MatchSession._(
@@ -346,6 +356,7 @@ class MatchSession {
       moves: const <ChessMoveRecord>[],
       updatedAt: DateTime.now().toUtc(),
       enPassantTarget: null,
+      loneKingPlyCount: 0,
     );
   }
 
@@ -365,6 +376,7 @@ class MatchSession {
       final rawPhase = json['phase'];
       final rawUpdatedAt = json['updatedAt'];
       final rawEnPassantTarget = json['enPassantTarget'];
+      final rawLoneKingPlyCount = json['loneKingPlyCount'];
 
       return MatchSession._(
         board: board,
@@ -381,6 +393,7 @@ class MatchSession {
         enPassantTarget: rawEnPassantTarget is Map<String, dynamic>
             ? ChessSquare.fromJson(rawEnPassantTarget)
             : null,
+        loneKingPlyCount: (rawLoneKingPlyCount as num?)?.toInt() ?? 0,
       );
     } catch (_) {
       return MatchSession.initial();
@@ -400,6 +413,7 @@ class MatchSession {
       'moves': moves.map((move) => move.toJson()).toList(growable: false),
       'updatedAt': updatedAt.toIso8601String(),
       'enPassantTarget': enPassantTarget?.toJson(),
+      'loneKingPlyCount': loneKingPlyCount,
     };
   }
 
@@ -419,11 +433,24 @@ class MatchSession {
     return isSquareAttacked(square, activeColor.opponent) ? square : null;
   }
 
+  bool get hasLoneKingSide => _hasLoneKingSide(board);
+
+  int? get loneKingMovesRemaining {
+    if (!hasLoneKingSide || isComplete) {
+      return null;
+    }
+    final consumedMoves = (loneKingPlyCount / 2).floor();
+    return (21 - consumedMoves).clamp(0, 21).toInt();
+  }
+
   String get statusLabel {
     return switch (phase) {
       MatchPhase.whiteWon => 'White wins by checkmate',
       MatchPhase.blackWon => 'Black wins by checkmate',
-      MatchPhase.draw => 'Draw by stalemate',
+      MatchPhase.draw =>
+        hasLoneKingSide && loneKingPlyCount >= loneKingPlyLimit
+            ? 'Draw by 21-move lone king rule'
+            : 'Draw by stalemate',
       MatchPhase.playing =>
         isInCheck(activeColor)
             ? '${activeColor.label} to move, in check'
@@ -435,7 +462,10 @@ class MatchSession {
     return switch (phase) {
       MatchPhase.whiteWon => 'Checkmate. White wins.',
       MatchPhase.blackWon => 'Checkmate. Black wins.',
-      MatchPhase.draw => 'Stalemate. Game drawn.',
+      MatchPhase.draw =>
+        hasLoneKingSide && loneKingPlyCount >= loneKingPlyLimit
+            ? 'Lone king survived 21 moves. Game drawn.'
+            : 'Stalemate. Game drawn.',
       MatchPhase.playing =>
         isInCheck(activeColor)
             ? '${activeColor.label} is in check. Find a legal escape.'
@@ -460,6 +490,7 @@ class MatchSession {
       moves: moves,
       updatedAt: DateTime.now().toUtc(),
       enPassantTarget: enPassantTarget,
+      loneKingPlyCount: loneKingPlyCount,
     );
   }
 
@@ -702,6 +733,9 @@ class MatchSession {
       }
       return MatchPhase.draw;
     }
+    if (loneKingPlyCount >= loneKingPlyLimit) {
+      return MatchPhase.draw;
+    }
     return MatchPhase.playing;
   }
 
@@ -787,6 +821,9 @@ class MatchSession {
     }
 
     nextBoard[move.to.row][move.to.file] = placedPiece;
+    final nextLoneKingPlyCount = _hasLoneKingSide(nextBoard)
+        ? (_hasLoneKingSide(board) ? loneKingPlyCount + 1 : 0)
+        : 0;
 
     final record = ChessMoveRecord(
       color: movingPiece.color,
@@ -810,6 +847,7 @@ class MatchSession {
       moves: nextMoves,
       updatedAt: DateTime.now().toUtc(),
       enPassantTarget: nextEnPassantTarget,
+      loneKingPlyCount: nextLoneKingPlyCount,
     );
 
     if (resolveOutcome) {
@@ -822,6 +860,7 @@ class MatchSession {
           moves: nextMoves,
           updatedAt: nextSession.updatedAt,
           enPassantTarget: nextEnPassantTarget,
+          loneKingPlyCount: nextLoneKingPlyCount,
         );
       }
     }
@@ -867,13 +906,7 @@ class MatchSession {
 
     final oneStep = square.offset(0, direction);
     if (_isInsideSquare(oneStep) && pieceAt(oneStep) == null) {
-      moves.add(
-        ChessMove(
-          from: square,
-          to: oneStep,
-          promotion: oneStep.row == promotionRow ? ChessPieceType.queen : null,
-        ),
-      );
+      moves.addAll(_pawnMovesTo(square, oneStep, oneStep.row == promotionRow));
 
       final twoStep = square.offset(0, direction * 2);
       if (square.row == startRow &&
@@ -890,13 +923,11 @@ class MatchSession {
       }
       final targetPiece = pieceAt(captureSquare);
       if (targetPiece != null && targetPiece.color != piece.color) {
-        moves.add(
-          ChessMove(
-            from: square,
-            to: captureSquare,
-            promotion: captureSquare.row == promotionRow
-                ? ChessPieceType.queen
-                : null,
+        moves.addAll(
+          _pawnMovesTo(
+            square,
+            captureSquare,
+            captureSquare.row == promotionRow,
           ),
         );
         continue;
@@ -915,6 +946,19 @@ class MatchSession {
     }
 
     return moves;
+  }
+
+  List<ChessMove> _pawnMovesTo(
+    ChessSquare from,
+    ChessSquare to,
+    bool promotes,
+  ) {
+    if (!promotes) {
+      return <ChessMove>[ChessMove(from: from, to: to)];
+    }
+    return promotionPieceTypes
+        .map((promotion) => ChessMove(from: from, to: to, promotion: promotion))
+        .toList(growable: false);
   }
 
   List<ChessMove> _knightMoves(ChessSquare square, ChessPiece piece) {
@@ -1164,4 +1208,27 @@ List<List<ChessPiece?>> _freezeBoard(List<List<ChessPiece?>> board) {
 
 List<List<ChessPiece?>> _cloneBoard(List<List<ChessPiece?>> board) {
   return board.map((row) => List<ChessPiece?>.of(row)).toList(growable: false);
+}
+
+bool _hasLoneKingSide(List<List<ChessPiece?>> board) {
+  var whiteNonKingPieces = 0;
+  var blackNonKingPieces = 0;
+
+  for (final row in board) {
+    for (final piece in row) {
+      if (piece == null || piece.type == ChessPieceType.king) {
+        continue;
+      }
+      switch (piece.color) {
+        case ChessColor.white:
+          whiteNonKingPieces += 1;
+          break;
+        case ChessColor.black:
+          blackNonKingPieces += 1;
+          break;
+      }
+    }
+  }
+
+  return whiteNonKingPieces == 0 || blackNonKingPieces == 0;
 }

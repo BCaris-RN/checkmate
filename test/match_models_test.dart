@@ -7,7 +7,10 @@ void main() {
     final session = MatchSession.initial();
 
     expect(session.board.length, MatchSession.rows);
-    expect(session.board.every((row) => row.length == MatchSession.columns), isTrue);
+    expect(
+      session.board.every((row) => row.length == MatchSession.columns),
+      isTrue,
+    );
     expect(
       session.board[7][4],
       const ChessPiece(color: ChessColor.white, type: ChessPieceType.king),
@@ -73,4 +76,95 @@ void main() {
     expect(restored.moves.length, 1);
     expect(restored.board[4][4], next.board[4][4]);
   });
+
+  test('offers queen, rook, bishop, and knight promotion choices', () {
+    final session = MatchSession.fromJson({
+      'board': _emptyBoard()
+        ..[0][4] = const ChessPiece(
+          color: ChessColor.black,
+          type: ChessPieceType.king,
+        ).toJson()
+        ..[1][0] = const ChessPiece(
+          color: ChessColor.white,
+          type: ChessPieceType.pawn,
+        ).toJson()
+        ..[7][4] = const ChessPiece(
+          color: ChessColor.white,
+          type: ChessPieceType.king,
+        ).toJson(),
+      'activeColor': 'white',
+      'phase': 'playing',
+      'moves': <Object?>[],
+      'updatedAt': DateTime.utc(2026, 1, 1).toIso8601String(),
+      'enPassantTarget': null,
+    });
+
+    final moves = session.legalMovesFrom(const ChessSquare(file: 0, row: 1));
+
+    expect(
+      moves.map((move) => move.promotion),
+      containsAll(<ChessPieceType>[
+        ChessPieceType.queen,
+        ChessPieceType.rook,
+        ChessPieceType.bishop,
+        ChessPieceType.knight,
+      ]),
+    );
+
+    final promoted = session.playMove(
+      const ChessMove(
+        from: ChessSquare(file: 0, row: 1),
+        to: ChessSquare(file: 0, row: 0),
+        promotion: ChessPieceType.knight,
+      ),
+    );
+
+    expect(
+      promoted.board[0][0],
+      const ChessPiece(
+        color: ChessColor.white,
+        type: ChessPieceType.knight,
+        hasMoved: true,
+      ),
+    );
+  });
+
+  test('draws after the 21-move lone king counter expires', () {
+    final session = MatchSession.fromJson({
+      'board': _emptyBoard()
+        ..[0][4] = const ChessPiece(
+          color: ChessColor.black,
+          type: ChessPieceType.king,
+        ).toJson()
+        ..[7][4] = const ChessPiece(
+          color: ChessColor.white,
+          type: ChessPieceType.king,
+        ).toJson(),
+      'activeColor': 'white',
+      'phase': 'playing',
+      'moves': <Object?>[],
+      'updatedAt': DateTime.utc(2026, 1, 1).toIso8601String(),
+      'enPassantTarget': null,
+      'loneKingPlyCount': 41,
+    });
+
+    expect(session.loneKingMovesRemaining, 1);
+
+    final drawn = session.playMove(
+      const ChessMove(
+        from: ChessSquare(file: 4, row: 7),
+        to: ChessSquare(file: 4, row: 6),
+      ),
+    );
+
+    expect(drawn.phase, MatchPhase.draw);
+    expect(drawn.statusLabel, 'Draw by 21-move lone king rule');
+  });
+}
+
+List<List<Object?>> _emptyBoard() {
+  return List<List<Object?>>.generate(
+    MatchSession.rows,
+    (_) => List<Object?>.filled(MatchSession.columns, null),
+  );
 }

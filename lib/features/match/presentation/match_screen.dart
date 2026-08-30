@@ -390,9 +390,12 @@ class _BoardGrid extends StatelessWidget {
                                       canTap: canTap,
                                       onTap: canTap
                                           ? () {
-                                              controller.tapSquare(
-                                                boardFile,
-                                                boardRow,
+                                              unawaited(
+                                                _handleBoardTap(
+                                                  context,
+                                                  controller,
+                                                  square,
+                                                ),
                                               );
                                             }
                                           : null,
@@ -446,6 +449,82 @@ class _BoardGrid extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _handleBoardTap(
+    BuildContext context,
+    MatchController controller,
+    ChessSquare square,
+  ) async {
+    final promotionMoves = controller.promotionMovesForSelectedTarget(square);
+    if (promotionMoves.isEmpty) {
+      await controller.tapSquare(square.file, square.row);
+      return;
+    }
+
+    final selectedMove = await showModalBottomSheet<ChessMove>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => _PromotionPicker(moves: promotionMoves),
+    );
+    if (selectedMove == null) {
+      return;
+    }
+    await controller.playMove(selectedMove);
+  }
+}
+
+class _PromotionPicker extends StatelessWidget {
+  const _PromotionPicker({required this.moves});
+
+  final List<ChessMove> moves;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.grid4,
+          0,
+          AppSpacing.grid4,
+          AppSpacing.grid4,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Promote pawn', style: theme.textTheme.displayMedium),
+            const SizedBox(height: AppSpacing.grid2),
+            Wrap(
+              spacing: AppSpacing.grid2,
+              runSpacing: AppSpacing.grid2,
+              children: [
+                for (final move in moves)
+                  FilledButton.tonalIcon(
+                    onPressed: () => Navigator.of(context).pop(move),
+                    icon: Text(
+                      move.promotion!.symbolFor(
+                        context.read<MatchController>().session.activeColor,
+                      ),
+                      style: const TextStyle(
+                        fontSize: AppTypography.bodyMD,
+                        height: 1,
+                      ),
+                    ),
+                    label: Text(_promotionLabel(move.promotion!)),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _promotionLabel(ChessPieceType type) {
+    return type == ChessPieceType.rook ? 'Castle (rook)' : type.label;
   }
 }
 
@@ -868,29 +947,33 @@ class _ControlsDrawer extends StatelessWidget {
           color: AppColors.textPrimary.withValues(alpha: 0.08),
         ),
       ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: false,
-          tilePadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.grid4,
-            vertical: AppSpacing.grid2,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadii.large),
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            initiallyExpanded: false,
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.grid4,
+              vertical: AppSpacing.grid2,
+            ),
+            childrenPadding: const EdgeInsets.fromLTRB(
+              AppSpacing.grid4,
+              0,
+              AppSpacing.grid4,
+              AppSpacing.grid4,
+            ),
+            title: Text(
+              'Controls',
+              style: Theme.of(context).textTheme.displayMedium,
+            ),
+            subtitle: Text(
+              'Collapsed by default so the board stays dominant.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            children: [_ControlColumn(controller: controller)],
           ),
-          childrenPadding: const EdgeInsets.fromLTRB(
-            AppSpacing.grid4,
-            0,
-            AppSpacing.grid4,
-            AppSpacing.grid4,
-          ),
-          title: Text(
-            'Controls',
-            style: Theme.of(context).textTheme.displayMedium,
-          ),
-          subtitle: Text(
-            'Collapsed by default so the board stays dominant.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          children: [_ControlColumn(controller: controller)],
         ),
       ),
     );
@@ -909,6 +992,7 @@ class _TimerSummaryCard extends StatelessWidget {
     final whiteRemaining = controller.remainingFor(ChessColor.white);
     final blackRemaining = controller.remainingFor(ChessColor.black);
     final hasFiniteClock = controller.clockPreset.duration != null;
+    final loneKingMovesRemaining = controller.loneKingMovesRemaining;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.grid4),
@@ -952,6 +1036,13 @@ class _TimerSummaryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.grid1),
+          if (loneKingMovesRemaining != null) ...[
+            _TimePill(
+              label: 'Lone king',
+              value: '$loneKingMovesRemaining moves',
+            ),
+            const SizedBox(height: AppSpacing.grid2),
+          ],
           if (controller.isLocal) ...[
             FilledButton.icon(
               onPressed: controller.busy
