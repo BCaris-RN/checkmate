@@ -532,6 +532,18 @@ class _BoardGridState extends State<_BoardGrid> with TickerProviderStateMixin {
                       ),
                     ),
                   ),
+                if (session.phase == MatchPhase.whiteWon ||
+                    session.phase == MatchPhase.blackWon)
+                  Positioned(
+                    left: AppSpacing.grid4,
+                    right: AppSpacing.grid4,
+                    bottom: AppSpacing.grid4,
+                    child: _CheckmateBanner(
+                      session: session,
+                      theme: theme,
+                      reduceMotion: reduceMotion,
+                    ),
+                  ),
                 IgnorePointer(
                   child: CustomPaint(
                     painter: _SurfacePatternPainter(
@@ -682,6 +694,10 @@ class _BoardContent extends StatelessWidget {
                               (lastMove!.from == square ||
                                   lastMove!.to == square);
                           final isChecked = checkedSquare == square;
+                          final isMatedKing =
+                              piece?.type == ChessPieceType.king &&
+                              session.winner != null &&
+                              piece?.color == session.winner!.opponent;
                           final shouldShake = illegalSquare == square;
 
                           return Expanded(
@@ -714,6 +730,7 @@ class _BoardContent extends StatelessWidget {
                                     isTarget: isTarget,
                                     isLastMove: isLastMove,
                                     isChecked: isChecked,
+                                    isMatedKing: isMatedKing,
                                     checkPulse: checkPulse,
                                     illegalPulse: shouldShake
                                         ? 1 - illegalAnimation.value
@@ -860,6 +877,67 @@ class _MoveOverlay extends StatelessWidget {
   }
 }
 
+class _CheckmateBanner extends StatelessWidget {
+  const _CheckmateBanner({
+    required this.session,
+    required this.theme,
+    required this.reduceMotion,
+  });
+
+  final MatchSession session;
+  final ChessSetTheme theme;
+  final bool reduceMotion;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: reduceMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 800),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        final bannerProgress = ((value - 0.72) / 0.28).clamp(0.0, 1.0);
+        return Opacity(
+          opacity: bannerProgress,
+          child: Transform.translate(
+            offset: Offset(0, (1 - bannerProgress) * AppSpacing.grid4),
+            child: child,
+          ),
+        );
+      },
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.textPrimary.withValues(alpha: 0.88),
+          borderRadius: BorderRadius.circular(AppRadii.medium),
+          border: Border.all(color: theme.accent.withValues(alpha: 0.55)),
+          boxShadow: [
+            BoxShadow(
+              color: theme.accent.withValues(alpha: 0.18),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.grid4,
+            vertical: AppSpacing.grid2,
+          ),
+          child: Text(
+            session.note,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: AppColors.surface,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PromotionPicker extends StatelessWidget {
   const _PromotionPicker({required this.moves});
 
@@ -924,6 +1002,7 @@ class _BoardSquare extends StatelessWidget {
     required this.isTarget,
     required this.isLastMove,
     required this.isChecked,
+    required this.isMatedKing,
     required this.checkPulse,
     required this.illegalPulse,
     required this.canTap,
@@ -938,6 +1017,7 @@ class _BoardSquare extends StatelessWidget {
   final bool isTarget;
   final bool isLastMove;
   final bool isChecked;
+  final bool isMatedKing;
   final double checkPulse;
   final double illegalPulse;
   final bool canTap;
@@ -1030,16 +1110,49 @@ class _BoardSquare extends StatelessWidget {
                 ),
               if (piece != null)
                 Center(
-                  child: _PieceBadge(
-                    piece: piece!,
-                    theme: theme,
-                    selected: isSelected,
+                  child: _CheckmatePieceMotion(
+                    enabled: isMatedKing,
+                    child: _PieceBadge(
+                      piece: piece!,
+                      theme: theme,
+                      selected: isSelected,
+                    ),
                   ),
                 ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CheckmatePieceMotion extends StatelessWidget {
+  const _CheckmatePieceMotion({required this.enabled, required this.child});
+
+  final bool enabled;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled || MediaQuery.disableAnimationsOf(context)) {
+      return child;
+    }
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        final topple = ((value - 0.25) / 0.50).clamp(0.0, 1.0);
+        return Transform.translate(
+          offset: Offset(0, topple * AppSpacing.grid2),
+          child: Transform.rotate(
+            angle: topple * (math.pi * 0.42),
+            child: child,
+          ),
+        );
+      },
+      child: child,
     );
   }
 }
