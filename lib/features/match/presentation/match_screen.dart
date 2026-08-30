@@ -188,6 +188,7 @@ class _BoardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = controller.activeTheme;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     return SizedBox(
       width: double.infinity,
@@ -203,14 +204,25 @@ class _BoardCard extends StatelessWidget {
             child: SizedBox(
               width: widthDrivenExtent,
               height: widthDrivenExtent,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadii.large - 2),
-                  border: Border.all(
-                    color: AppColors.textPrimary.withValues(alpha: 0.08),
+              child: _BoardFlipShell(
+                whiteAtBottom: controller.whiteAtBottom,
+                reduceMotion: reduceMotion,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadii.large - 2),
+                    border: Border.all(
+                      color: AppColors.textPrimary.withValues(alpha: 0.08),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.board.glow.withValues(alpha: 0.12),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
+                  child: _BoardGrid(controller: controller, theme: theme),
                 ),
-                child: _BoardGrid(controller: controller, theme: theme),
               ),
             ),
           );
@@ -272,21 +284,185 @@ class _PassReminderTile extends StatelessWidget {
   }
 }
 
-class _BoardGrid extends StatelessWidget {
+class _BoardFlipShell extends StatefulWidget {
+  const _BoardFlipShell({
+    required this.whiteAtBottom,
+    required this.reduceMotion,
+    required this.child,
+  });
+
+  final bool whiteAtBottom;
+  final bool reduceMotion;
+  final Widget child;
+
+  @override
+  State<_BoardFlipShell> createState() => _BoardFlipShellState();
+}
+
+class _BoardFlipShellState extends State<_BoardFlipShell>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late bool _whiteAtBottom;
+
+  @override
+  void initState() {
+    super.initState();
+    _whiteAtBottom = widget.whiteAtBottom;
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 550),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _BoardFlipShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.whiteAtBottom != _whiteAtBottom) {
+      _whiteAtBottom = widget.whiteAtBottom;
+      if (widget.reduceMotion) {
+        _controller.value = 0;
+      } else {
+        HapticFeedback.lightImpact();
+        _controller.forward(from: 0);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) {
+        final curved = Curves.easeInOutCubic.transform(_controller.value);
+        final lift = math.sin(curved * math.pi).abs();
+        return Transform.scale(
+          scale: 1 - (lift * 0.06),
+          child: Transform.rotate(angle: curved * math.pi, child: child),
+        );
+      },
+    );
+  }
+}
+
+class _BoardGrid extends StatefulWidget {
   const _BoardGrid({required this.controller, required this.theme});
 
   final MatchController controller;
   final ChessSetTheme theme;
 
   @override
+  State<_BoardGrid> createState() => _BoardGridState();
+}
+
+class _BoardGridState extends State<_BoardGrid> with TickerProviderStateMixin {
+  late MatchSession _previousSession;
+  late final AnimationController _moveController;
+  late final AnimationController _illegalController;
+  late final AnimationController _checkController;
+  _MoveAnimation? _moveAnimation;
+  ChessSquare? _illegalSquare;
+
+  static const double _rankLabelWidth = 6;
+  static const double _fileLabelHeight = 24;
+  static const double _fileLabelGap = AppSpacing.grid1;
+
+  @override
+  void initState() {
+    super.initState();
+    _previousSession = widget.controller.session;
+    _moveController = AnimationController(vsync: this)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed && mounted) {
+          setState(() {
+            _moveAnimation = null;
+          });
+        }
+      });
+    _illegalController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 280),
+        )..addStatusListener((status) {
+          if (status == AnimationStatus.completed && mounted) {
+            setState(() {
+              _illegalSquare = null;
+            });
+          }
+        });
+    _checkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _BoardGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final session = widget.controller.session;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
+    if (!reduceMotion && session.moves.length > _previousSession.moves.length) {
+      final record = session.moves.last;
+      final movingPiece = _previousSession.pieceAt(record.from);
+      if (movingPiece != null) {
+        final capturedSquare = record.isEnPassant
+            ? ChessSquare(file: record.to.file, row: record.from.row)
+            : record.to;
+        final distance = math.max(
+          (record.from.file - record.to.file).abs(),
+          (record.from.row - record.to.row).abs(),
+        );
+        _moveAnimation = _MoveAnimation(
+          record: record,
+          piece: movingPiece,
+          capturedPiece: _previousSession.pieceAt(capturedSquare),
+          capturedSquare: capturedSquare,
+        );
+        _moveController.duration = Duration(
+          milliseconds: math.min(260, 180 + distance * 12) + 110,
+        );
+        _moveController.forward(from: 0);
+      }
+    }
+
+    if (session.checkedKingSquare != null && !reduceMotion) {
+      if (!_checkController.isAnimating) {
+        _checkController.repeat(reverse: true, count: 4);
+      }
+    } else if (session.checkedKingSquare == null) {
+      _checkController.stop();
+      _checkController.value = 0;
+    }
+
+    _previousSession = session;
+  }
+
+  @override
+  void dispose() {
+    _moveController.dispose();
+    _illegalController.dispose();
+    _checkController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final session = controller.session;
+    final session = widget.controller.session;
+    final theme = widget.theme;
     final board = theme.board;
-    final selectedSquare = controller.selectedSquare;
-    final legalTargets = controller.legalTargets.toSet();
+    final selectedSquare = widget.controller.selectedSquare;
+    final legalTargets = widget.controller.legalTargets.toSet();
     final lastMove = session.moves.isNotEmpty ? session.moves.last : null;
     final checkedSquare = session.checkedKingSquare;
-    final whiteAtBottom = controller.whiteAtBottom;
+    final whiteAtBottom = widget.controller.whiteAtBottom;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     return Container(
       decoration: BoxDecoration(
@@ -305,147 +481,68 @@ class _BoardGrid extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.large - 2),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Column(
-              children: [
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SizedBox(
-                        width: 6,
-                        child: Column(
-                          children: List.generate(MatchSession.rows, (
-                            displayRow,
-                          ) {
-                            final boardRow = whiteAtBottom
-                                ? displayRow
-                                : 7 - displayRow;
-                            return Expanded(
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  '${MatchSession.rows - boardRow}',
-                                  style: Theme.of(context).textTheme.labelSmall
-                                      ?.copyWith(
-                                        color: board.border,
-                                        fontSize: AppTypography.labelMD,
-                                      ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                      ),
-                      const SizedBox(width: 0),
-                      Expanded(
-                        child: Column(
-                          children: List.generate(MatchSession.rows, (
-                            displayRow,
-                          ) {
-                            final boardRow = whiteAtBottom
-                                ? displayRow
-                                : 7 - displayRow;
-                            return Expanded(
-                              child: Row(
-                                children: List.generate(MatchSession.columns, (
-                                  displayFile,
-                                ) {
-                                  final boardFile = whiteAtBottom
-                                      ? displayFile
-                                      : 7 - displayFile;
-                                  final square = ChessSquare(
-                                    file: boardFile,
-                                    row: boardRow,
-                                  );
-                                  final piece =
-                                      session.board[boardRow][boardFile];
-                                  final isLightSquare =
-                                      (boardFile + boardRow) % 2 == 0;
-                                  final isSelected = selectedSquare == square;
-                                  final isTarget = legalTargets.contains(
-                                    square,
-                                  );
-                                  final isLastMove =
-                                      lastMove != null &&
-                                      (lastMove.from == square ||
-                                          lastMove.to == square);
-                                  final isChecked = checkedSquare == square;
-                                  final canTap =
-                                      controller.canLocalMove &&
-                                      !session.isComplete;
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final boardSize = Size(
+              math.max(0, constraints.maxWidth - _rankLabelWidth),
+              math.max(
+                0,
+                constraints.maxHeight - _fileLabelHeight - _fileLabelGap,
+              ),
+            );
+            final squareSize = boardSize.shortestSide / MatchSession.columns;
 
-                                  return Expanded(
-                                    child: _BoardSquare(
-                                      square: square,
-                                      piece: piece,
-                                      theme: theme,
-                                      isLightSquare: isLightSquare,
-                                      isSelected: isSelected,
-                                      isTarget: isTarget,
-                                      isLastMove: isLastMove,
-                                      isChecked: isChecked,
-                                      canTap: canTap,
-                                      onTap: canTap
-                                          ? () {
-                                              unawaited(
-                                                _handleBoardTap(
-                                                  context,
-                                                  controller,
-                                                  square,
-                                                ),
-                                              );
-                                            }
-                                          : null,
-                                    ),
-                                  );
-                                }),
-                              ),
-                            );
-                          }),
-                        ),
-                      ),
-                    ],
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                RepaintBoundary(
+                  child: _BoardContent(
+                    session: session,
+                    theme: theme,
+                    selectedSquare: selectedSquare,
+                    legalTargets: legalTargets,
+                    lastMove: lastMove,
+                    checkedSquare: checkedSquare,
+                    whiteAtBottom: whiteAtBottom,
+                    moving: reduceMotion ? null : _moveAnimation,
+                    illegalSquare: _illegalSquare,
+                    illegalAnimation: _illegalController,
+                    checkAnimation: _checkController,
+                    canTap:
+                        widget.controller.canLocalMove && !session.isComplete,
+                    onTap: (square) => unawaited(
+                      _handleBoardTap(context, widget.controller, square),
+                    ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.grid1),
-                SizedBox(
-                  height: 24,
-                  child: Row(
-                    children: List.generate(MatchSession.columns, (
-                      displayFile,
-                    ) {
-                      final boardFile = whiteAtBottom
-                          ? displayFile
-                          : 7 - displayFile;
-                      return Expanded(
-                        child: Center(
-                          child: Text(
-                            String.fromCharCode(97 + boardFile),
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: board.border,
-                                  fontSize: AppTypography.labelMD,
-                                ),
-                          ),
+                if (_moveAnimation != null && !reduceMotion)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedBuilder(
+                        animation: _moveController,
+                        builder: (context, _) => _MoveOverlay(
+                          animation: _moveAnimation!,
+                          controller: _moveController,
+                          theme: theme,
+                          boardSize: boardSize,
+                          squareSize: squareSize,
+                          whiteAtBottom: whiteAtBottom,
+                          rankLabelWidth: _rankLabelWidth,
                         ),
-                      );
-                    }),
+                      ),
+                    ),
+                  ),
+                IgnorePointer(
+                  child: CustomPaint(
+                    painter: _SurfacePatternPainter(
+                      pattern: board.pattern,
+                      color: board.patternColor,
+                    ),
                   ),
                 ),
               ],
-            ),
-            IgnorePointer(
-              child: CustomPaint(
-                painter: _SurfacePatternPainter(
-                  pattern: board.pattern,
-                  color: board.patternColor,
-                ),
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -458,7 +555,21 @@ class _BoardGrid extends StatelessWidget {
   ) async {
     final promotionMoves = controller.promotionMovesForSelectedTarget(square);
     if (promotionMoves.isEmpty) {
+      final selected = controller.selectedSquare;
+      final reduceMotion = MediaQuery.disableAnimationsOf(context);
+      final isIllegalTarget =
+          selected != null &&
+          selected != square &&
+          !controller.legalTargets.contains(square);
       await controller.tapSquare(square.file, square.row);
+      if (isIllegalTarget && mounted) {
+        setState(() {
+          _illegalSquare = selected;
+        });
+        if (!reduceMotion) {
+          _illegalController.forward(from: 0);
+        }
+      }
       return;
     }
 
@@ -471,6 +582,281 @@ class _BoardGrid extends StatelessWidget {
       return;
     }
     await controller.playMove(selectedMove);
+  }
+}
+
+class _BoardContent extends StatelessWidget {
+  const _BoardContent({
+    required this.session,
+    required this.theme,
+    required this.selectedSquare,
+    required this.legalTargets,
+    required this.lastMove,
+    required this.checkedSquare,
+    required this.whiteAtBottom,
+    required this.moving,
+    required this.illegalSquare,
+    required this.illegalAnimation,
+    required this.checkAnimation,
+    required this.canTap,
+    required this.onTap,
+  });
+
+  final MatchSession session;
+  final ChessSetTheme theme;
+  final ChessSquare? selectedSquare;
+  final Set<ChessSquare> legalTargets;
+  final ChessMoveRecord? lastMove;
+  final ChessSquare? checkedSquare;
+  final bool whiteAtBottom;
+  final _MoveAnimation? moving;
+  final ChessSquare? illegalSquare;
+  final Animation<double> illegalAnimation;
+  final Animation<double> checkAnimation;
+  final bool canTap;
+  final ValueChanged<ChessSquare> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final board = theme.board;
+
+    return Column(
+      children: [
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: _BoardGridState._rankLabelWidth,
+                child: Column(
+                  children: List.generate(MatchSession.rows, (displayRow) {
+                    final boardRow = whiteAtBottom
+                        ? displayRow
+                        : 7 - displayRow;
+                    return Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          '${MatchSession.rows - boardRow}',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: board.border,
+                                fontSize: AppTypography.labelMD,
+                              ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  children: List.generate(MatchSession.rows, (displayRow) {
+                    final boardRow = whiteAtBottom
+                        ? displayRow
+                        : 7 - displayRow;
+                    return Expanded(
+                      child: Row(
+                        children: List.generate(MatchSession.columns, (
+                          displayFile,
+                        ) {
+                          final boardFile = whiteAtBottom
+                              ? displayFile
+                              : 7 - displayFile;
+                          final square = ChessSquare(
+                            file: boardFile,
+                            row: boardRow,
+                          );
+                          var piece = session.board[boardRow][boardFile];
+                          if (moving != null &&
+                              (moving!.record.from == square ||
+                                  moving!.record.to == square ||
+                                  moving!.capturedSquare == square)) {
+                            piece = null;
+                          }
+                          final isLightSquare = (boardFile + boardRow) % 2 == 0;
+                          final isSelected = selectedSquare == square;
+                          final isTarget = legalTargets.contains(square);
+                          final isLastMove =
+                              lastMove != null &&
+                              (lastMove!.from == square ||
+                                  lastMove!.to == square);
+                          final isChecked = checkedSquare == square;
+                          final shouldShake = illegalSquare == square;
+
+                          return Expanded(
+                            child: AnimatedBuilder(
+                              animation: Listenable.merge([
+                                illegalAnimation,
+                                checkAnimation,
+                              ]),
+                              builder: (context, child) {
+                                final shake = shouldShake
+                                    ? math.sin(
+                                            illegalAnimation.value *
+                                                math.pi *
+                                                6,
+                                          ) *
+                                          (1 - illegalAnimation.value) *
+                                          6
+                                    : 0.0;
+                                final checkPulse = isChecked
+                                    ? checkAnimation.value
+                                    : 0.0;
+                                return Transform.translate(
+                                  offset: Offset(shake, 0),
+                                  child: _BoardSquare(
+                                    square: square,
+                                    piece: piece,
+                                    theme: theme,
+                                    isLightSquare: isLightSquare,
+                                    isSelected: isSelected,
+                                    isTarget: isTarget,
+                                    isLastMove: isLastMove,
+                                    isChecked: isChecked,
+                                    checkPulse: checkPulse,
+                                    illegalPulse: shouldShake
+                                        ? 1 - illegalAnimation.value
+                                        : 0,
+                                    canTap: canTap,
+                                    onTap: canTap ? () => onTap(square) : null,
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        }),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: _BoardGridState._fileLabelGap),
+        SizedBox(
+          height: _BoardGridState._fileLabelHeight,
+          child: Padding(
+            padding: const EdgeInsets.only(
+              left: _BoardGridState._rankLabelWidth,
+            ),
+            child: Row(
+              children: List.generate(MatchSession.columns, (displayFile) {
+                final boardFile = whiteAtBottom ? displayFile : 7 - displayFile;
+                return Expanded(
+                  child: Center(
+                    child: Text(
+                      String.fromCharCode(97 + boardFile),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: board.border,
+                        fontSize: AppTypography.labelMD,
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MoveAnimation {
+  const _MoveAnimation({
+    required this.record,
+    required this.piece,
+    required this.capturedPiece,
+    required this.capturedSquare,
+  });
+
+  final ChessMoveRecord record;
+  final ChessPiece piece;
+  final ChessPiece? capturedPiece;
+  final ChessSquare capturedSquare;
+}
+
+class _MoveOverlay extends StatelessWidget {
+  const _MoveOverlay({
+    required this.animation,
+    required this.controller,
+    required this.theme,
+    required this.boardSize,
+    required this.squareSize,
+    required this.whiteAtBottom,
+    required this.rankLabelWidth,
+  });
+
+  final _MoveAnimation animation;
+  final AnimationController controller;
+  final ChessSetTheme theme;
+  final Size boardSize;
+  final double squareSize;
+  final bool whiteAtBottom;
+  final double rankLabelWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final moveProgress = Curves.easeInOutCubic.transform(
+      (controller.value / 0.72).clamp(0.0, 1.0),
+    );
+    final settleProgress = Curves.easeOutBack.transform(
+      ((controller.value - 0.72) / 0.28).clamp(0.0, 1.0),
+    );
+    final from = _squareOffset(animation.record.from);
+    final to = _squareOffset(animation.record.to);
+    final current = Offset.lerp(from, to, moveProgress)!;
+    final scale = 1.08 - (0.08 * settleProgress);
+
+    return Stack(
+      children: [
+        if (animation.capturedPiece != null)
+          Positioned(
+            left: _squareOffset(animation.capturedSquare).dx,
+            top: _squareOffset(animation.capturedSquare).dy,
+            width: squareSize,
+            height: squareSize,
+            child: Opacity(
+              opacity: 1 - ((controller.value - 0.58) / 0.34).clamp(0.0, 1.0),
+              child: Transform.scale(
+                scale:
+                    1 -
+                    (((controller.value - 0.58) / 0.34).clamp(0.0, 1.0) * 0.3),
+                child: _PieceBadge(
+                  piece: animation.capturedPiece!,
+                  theme: theme,
+                  selected: false,
+                ),
+              ),
+            ),
+          ),
+        Positioned(
+          left: current.dx,
+          top: current.dy,
+          width: squareSize,
+          height: squareSize,
+          child: Transform.scale(
+            scale: scale,
+            child: _PieceBadge(
+              piece: animation.piece,
+              theme: theme,
+              selected: true,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Offset _squareOffset(ChessSquare square) {
+    final displayFile = whiteAtBottom ? square.file : 7 - square.file;
+    final displayRow = whiteAtBottom ? square.row : 7 - square.row;
+    return Offset(
+      rankLabelWidth + displayFile * squareSize,
+      displayRow * squareSize,
+    );
   }
 }
 
@@ -538,6 +924,8 @@ class _BoardSquare extends StatelessWidget {
     required this.isTarget,
     required this.isLastMove,
     required this.isChecked,
+    required this.checkPulse,
+    required this.illegalPulse,
     required this.canTap,
     required this.onTap,
   });
@@ -550,6 +938,8 @@ class _BoardSquare extends StatelessWidget {
   final bool isTarget;
   final bool isLastMove;
   final bool isChecked;
+  final double checkPulse;
+  final double illegalPulse;
   final bool canTap;
   final VoidCallback? onTap;
 
@@ -561,9 +951,16 @@ class _BoardSquare extends StatelessWidget {
         : board.darkSquare.first;
     final borderColor = isChecked
         ? theme.accent.withValues(alpha: 0.92)
+        : illegalPulse > 0
+        ? Colors.redAccent.withValues(alpha: 0.72)
         : isSelected
         ? theme.accent.withValues(alpha: 0.68)
         : board.border.withValues(alpha: 0.16);
+    final borderWidth = isChecked
+        ? 1.5 + checkPulse
+        : isSelected
+        ? 2.0
+        : 1.0;
 
     return Semantics(
       button: canTap,
@@ -585,7 +982,23 @@ class _BoardSquare extends StatelessWidget {
                     .withValues(alpha: isLightSquare ? 0.92 : 0.95),
               ],
             ),
-            border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
+            border: Border.all(color: borderColor, width: borderWidth),
+            boxShadow: [
+              if (isChecked)
+                BoxShadow(
+                  color: theme.accent.withValues(
+                    alpha: 0.18 + checkPulse * 0.2,
+                  ),
+                  blurRadius: 8 + checkPulse * 8,
+                ),
+              if (illegalPulse > 0)
+                BoxShadow(
+                  color: Colors.redAccent.withValues(
+                    alpha: illegalPulse * 0.24,
+                  ),
+                  blurRadius: 6,
+                ),
+            ],
           ),
           child: Stack(
             fit: StackFit.expand,
@@ -662,55 +1075,107 @@ class _PieceBadge extends StatelessWidget {
           child: SizedBox(
             width: size,
             height: size,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [material.surface.first, material.surface.last],
-                ),
-                border: Border.all(
-                  color: selected
-                      ? theme.accent.withValues(alpha: 0.58)
-                      : material.border.withValues(alpha: 0.78),
-                  width: selected ? 1.2 : 0.9,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: shadowColor,
-                    blurRadius: selected ? 4 : 3,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Text(
-                  piece.symbol,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: size * 0.66,
-                    height: 1,
-                    color: material.symbolColor,
-                    fontWeight: FontWeight.w500,
-                    fontFamilyFallback: const <String>[
-                      'Segoe UI Symbol',
-                      'Noto Sans Symbols 2',
-                      'Apple Symbols',
-                    ],
-                    shadows: [
-                      Shadow(
-                        color: material.shadow.withValues(alpha: 0.18),
-                        blurRadius: 0.25,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                ),
+            child: Image.asset(
+              _pieceAssetPath(theme, piece),
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.medium,
+              errorBuilder: (context, error, stackTrace) => _GlyphPieceBadge(
+                piece: piece,
+                theme: theme,
+                material: material,
+                shadowColor: shadowColor,
+                selected: selected,
+                size: size,
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  String _pieceAssetPath(ChessSetTheme theme, ChessPiece piece) {
+    final color = piece.color == ChessColor.white ? 'light' : 'dark';
+    return 'assets/pieces/${_pieceThemeSlug(theme)}/${color}_${piece.type.label}.png';
+  }
+
+  String _pieceThemeSlug(ChessSetTheme theme) {
+    return switch (theme.id) {
+      'chrome' => 'chrome_vanguard',
+      'crystal' => 'crystal_vault',
+      'gold' => 'gilded_court',
+      'carbon' => 'carbon_night',
+      'obsidian' => 'obsidian_relic',
+      'aurora' => 'aurora_myth',
+      _ => theme.id,
+    };
+  }
+}
+
+class _GlyphPieceBadge extends StatelessWidget {
+  const _GlyphPieceBadge({
+    required this.piece,
+    required this.theme,
+    required this.material,
+    required this.shadowColor,
+    required this.selected,
+    required this.size,
+  });
+
+  final ChessPiece piece;
+  final ChessSetTheme theme;
+  final ChessSurfaceMaterial material;
+  final Color shadowColor;
+  final bool selected;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [material.surface.first, material.surface.last],
+        ),
+        border: Border.all(
+          color: selected
+              ? theme.accent.withValues(alpha: 0.58)
+              : material.border.withValues(alpha: 0.78),
+          width: selected ? 1.2 : 0.9,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: selected ? 4 : 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          piece.symbol,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: size * 0.66,
+            height: 1,
+            color: material.symbolColor,
+            fontWeight: FontWeight.w500,
+            fontFamilyFallback: const <String>[
+              'Segoe UI Symbol',
+              'Noto Sans Symbols 2',
+              'Apple Symbols',
+            ],
+            shadows: [
+              Shadow(
+                color: material.shadow.withValues(alpha: 0.18),
+                blurRadius: 0.25,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
